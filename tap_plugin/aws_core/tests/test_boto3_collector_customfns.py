@@ -15,7 +15,6 @@ Origin Access Control config in the distribution's configuration).
 from __future__ import annotations
 
 from botocore.exceptions import ClientError
-
 from tap_plugin.aws_core.collectors.boto3_collector.customfns import (
     _bucket_size_metrics,
     aws_account_singleton,

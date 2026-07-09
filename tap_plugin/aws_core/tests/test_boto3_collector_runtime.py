@@ -13,7 +13,6 @@ from pathlib import Path
 
 import jsonschema
 import pytest
-
 from tap_plugin.aws_core.collectors.boto3_collector import credentials as cred
 from tap_plugin.aws_core.collectors.boto3_collector.collector import Boto3Collector
 from tap_plugin.aws_core.collectors.boto3_collector.credentials import (
@@ -21,6 +20,7 @@ from tap_plugin.aws_core.collectors.boto3_collector.credentials import (
     CredentialError,
     resolve_regions,
 )
+
 from tap_cares.collectors import CollectorBase, CollectorReadinessStatus
 from tap_cares.exceptions import SecretNotFoundError
 from tap_cares.registry import collector_registry
@@ -125,9 +125,7 @@ class TestSelfTest:
         assert result.status == CollectorReadinessStatus.MISCONFIGURED
 
     def test_reachable_is_ready(self, monkeypatch):
-        monkeypatch.setattr(
-            cred, "resolve_secret", lambda _ref: _secret("aws_static_access_key", _GOOD_DATA)
-        )
+        monkeypatch.setattr(cred, "resolve_secret", lambda _ref: _secret("aws_static_access_key", _GOOD_DATA))
         monkeypatch.setattr(
             "tap_plugin.aws_core.collectors.boto3_collector.collector.caller_account_id",
             lambda *a, **k: "123456789012",
@@ -139,16 +137,12 @@ class TestSelfTest:
     def test_sts_unreachable_is_error(self, monkeypatch):
         from botocore.exceptions import NoCredentialsError
 
-        monkeypatch.setattr(
-            cred, "resolve_secret", lambda _ref: _secret("aws_static_access_key", _GOOD_DATA)
-        )
+        monkeypatch.setattr(cred, "resolve_secret", lambda _ref: _secret("aws_static_access_key", _GOOD_DATA))
 
         def _boom(*_a, **_k):
             raise NoCredentialsError()
 
-        monkeypatch.setattr(
-            "tap_plugin.aws_core.collectors.boto3_collector.collector.caller_account_id", _boom
-        )
+        monkeypatch.setattr("tap_plugin.aws_core.collectors.boto3_collector.collector.caller_account_id", _boom)
         result = Boto3Collector.self_test()
         assert result.status == CollectorReadinessStatus.ERROR
         assert not result.runnable

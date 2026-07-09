@@ -8,7 +8,6 @@ source-dispatch seam (uniform item contract, registered-only custom_fn).
 from __future__ import annotations
 
 import pytest
-
 from tap_plugin.aws_core.collectors.boto3_collector.source import (
     CustomFnRegistry,
     SourceError,
@@ -59,9 +58,7 @@ class TestIterAwsOp:
         assert [r["Arn"] for r in items] == ["r1", "r2", "r3"]
 
     def test_response_metadata_stripped_before_extraction(self):
-        client = _FakeClient(
-            single={"list_roles": {"Roles": [{"Arn": "r1"}], "ResponseMetadata": {"RequestId": "x"}}}
-        )
+        client = _FakeClient(single={"list_roles": {"Roles": [{"Arn": "r1"}], "ResponseMetadata": {"RequestId": "x"}}})
         items = list(iter_aws_op(client, "ListRoles", "Roles[]"))
         assert items == [{"Arn": "r1"}]
         assert all("ResponseMetadata" not in i for i in items)
@@ -71,9 +68,7 @@ class TestIterAwsOp:
         assert list(iter_aws_op(client, "ListFunctions", "Functions[]")) == []
 
     def test_nested_items_path(self):
-        client = _FakeClient(
-            single={"list_distributions": {"DistributionList": {"Items": [{"ARN": "d1"}]}}}
-        )
+        client = _FakeClient(single={"list_distributions": {"DistributionList": {"Items": [{"ARN": "d1"}]}}})
         items = list(iter_aws_op(client, "ListDistributions", "DistributionList.Items[]"))
         assert items == [{"ARN": "d1"}]
 
@@ -108,9 +103,7 @@ class TestSourceDispatch:
         reg = CustomFnRegistry()
         reg.register("probe", lambda ctx, *, client_for: iter([{"Id": ctx}]))
         entry = {"service": "route53", "source": {"custom_fn": "probe"}, "items_path": "[]"}
-        items = list(
-            iter_source(entry, client_for=self._client_for, custom_fns=reg, fn_context="REGION-CTX")
-        )
+        items = list(iter_source(entry, client_for=self._client_for, custom_fns=reg, fn_context="REGION-CTX"))
         assert items == [{"Id": "REGION-CTX"}]
 
     def test_custom_fn_receives_client_for(self):

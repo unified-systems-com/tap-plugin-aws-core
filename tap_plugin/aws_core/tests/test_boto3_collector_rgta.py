@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import pytest
 from botocore.exceptions import ClientError
-
 from tap_plugin.aws_core.collectors.boto3_collector.rgta import (
     rgta_resource_type_filters,
     sweep_tags,

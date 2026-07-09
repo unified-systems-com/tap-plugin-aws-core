@@ -8,7 +8,6 @@ convention; declared in both schemas; never an Entity-spine facet.
 from __future__ import annotations
 
 import pytest
-
 from tap_plugin.aws_core.models.acm_certificate import AcmCertificate
 from tap_plugin.aws_core.models.cloudfront_distribution import CloudfrontDistribution
 from tap_plugin.aws_core.models.cloudwatch_log_group import CloudwatchLogGroup

@@ -15,7 +15,6 @@ from __future__ import annotations
 import uuid
 
 import pytest
-
 from tap_plugin.aws_core.collectors.boto3_collector import collector as collector_mod
 from tap_plugin.aws_core.collectors.boto3_collector import credentials as cred
 from tap_plugin.aws_core.collectors.boto3_collector.collector import Boto3Collector
@@ -23,6 +22,7 @@ from tap_plugin.aws_core.collectors.boto3_collector.identity import (
     edge_entity_id,
     node_entity_id,
 )
+
 from tap_cares.collectors.config import CollectorConfig
 from tap_cares.secrets.models import Secret, SecretRef
 
@@ -308,6 +308,7 @@ def test_unregistered_edge_transform_is_classified_not_fatal(_stub_aws, monkeypa
     transforms ship registered.
     """
     from tap_plugin.aws_core.collectors.boto3_collector.edges import TransformRegistry
+
     from tap_grid.services import get_node
 
     monkeypatch.setattr(collector_mod, "build_transform_registry", TransformRegistry)

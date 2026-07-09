@@ -10,7 +10,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-
 from tap_plugin.aws_core.collectors.boto3_collector.ledger import (
     CallLedger,
     _classify,
@@ -19,9 +18,7 @@ from tap_plugin.aws_core.collectors.boto3_collector.ledger import (
 
 def _model(service: str, operation: str) -> SimpleNamespace:
     # Mirrors botocore OperationModel: .name + .service_model.service_name.
-    return SimpleNamespace(
-        name=operation, service_model=SimpleNamespace(service_name=service)
-    )
+    return SimpleNamespace(name=operation, service_model=SimpleNamespace(service_name=service))
 
 
 def _parsed(status, *, request_id=None, host_id=None, date=None, error_code=None):
@@ -143,8 +140,6 @@ class TestDrainShape:
 
     def test_attach_registers_three_handlers(self):
         registered = []
-        session = SimpleNamespace(
-            events=SimpleNamespace(register=lambda name, fn: registered.append(name))
-        )
+        session = SimpleNamespace(events=SimpleNamespace(register=lambda name, fn: registered.append(name)))
         CallLedger().attach(session)
         assert registered == ["before-call", "after-call", "after-call-error"]

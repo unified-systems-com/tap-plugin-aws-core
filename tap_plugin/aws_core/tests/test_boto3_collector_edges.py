@@ -8,7 +8,6 @@ the registered-only transform hook.
 from __future__ import annotations
 
 import pytest
-
 from tap_plugin.aws_core.collectors.boto3_collector.edges import (
     EdgeError,
     TransformRegistry,
@@ -20,7 +19,12 @@ from tap_plugin.aws_core.collectors.boto3_collector.identity import (
 )
 from tap_plugin.aws_core.collectors.boto3_collector.projection import ProjectedNode
 
-MODELED = {"aws_core__aws_lambda", "aws_core__aws_iam_role", "aws_core__aws_cloudwatch_log_group", "aws_core__aws_s3_bucket"}
+MODELED = {
+    "aws_core__aws_lambda",
+    "aws_core__aws_iam_role",
+    "aws_core__aws_cloudwatch_log_group",
+    "aws_core__aws_s3_bucket",
+}
 DIMS = {"cloud": "aws", "region": "us-east-1"}
 
 

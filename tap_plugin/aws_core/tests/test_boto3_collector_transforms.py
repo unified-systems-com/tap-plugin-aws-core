@@ -9,7 +9,6 @@ returns None for non-S3 origins so no bogus edge is fabricated.
 from __future__ import annotations
 
 import pytest
-
 from tap_plugin.aws_core.collectors.boto3_collector.customfns import (
     build_custom_fn_registry,
 )

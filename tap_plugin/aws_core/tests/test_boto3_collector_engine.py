@@ -13,7 +13,6 @@ from datetime import UTC, date, datetime
 
 import jsonschema
 import pytest
-
 from tap_plugin.aws_core.collectors.boto3_collector import manifest as manifest_mod
 from tap_plugin.aws_core.collectors.boto3_collector.envelope import (
     build_configuration,
@@ -91,7 +90,16 @@ class TestManifest:
         entries = manifest_entries()
         assert len(entries) == 11
         for e in entries:
-            assert {"entity_type", "service", "scope", "source", "why", "items_path", "natural_key", "fields"} <= e.keys()
+            assert {
+                "entity_type",
+                "service",
+                "scope",
+                "source",
+                "why",
+                "items_path",
+                "natural_key",
+                "fields",
+            } <= e.keys()
             assert e["scope"] in ("regional", "global")
             assert ("aws_op" in e["source"]) ^ ("custom_fn" in e["source"])
 

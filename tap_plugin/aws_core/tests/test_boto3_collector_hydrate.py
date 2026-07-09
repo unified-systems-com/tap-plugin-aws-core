@@ -8,7 +8,6 @@ self-describing _hydrate / _hydrate_mapping envelope on the item root.
 from __future__ import annotations
 
 from botocore.exceptions import ClientError, ConnectTimeoutError
-
 from tap_plugin.aws_core.collectors.boto3_collector.hydrate import hydrate_item
 
 _HYDRATE_OPS = [
@@ -33,9 +32,7 @@ class _FakeS3:
         raise _client_error("AccessDenied", "GetPublicAccessBlock")
 
     def get_bucket_encryption(self, **_):
-        raise _client_error(
-            "ServerSideEncryptionConfigurationNotFoundError", "GetBucketEncryption"
-        )
+        raise _client_error("ServerSideEncryptionConfigurationNotFoundError", "GetBucketEncryption")
 
     def get_bucket_policy_status(self, **_):
         raise ConnectTimeoutError(endpoint_url="https://s3")
