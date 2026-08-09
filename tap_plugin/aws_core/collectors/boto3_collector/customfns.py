@@ -19,6 +19,7 @@ redirects ``GetBucket*`` to the bucket's own region).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from typing import Any
 
@@ -49,7 +50,7 @@ def _resolve_bucket_region(base_client: Any, bucket_name: str) -> str:
     try:
         location = base_client.get_bucket_location(Bucket=bucket_name)
         return location.get("LocationConstraint") or "us-east-1"
-    except (ClientError, BotoCoreError):
+    except ClientError, BotoCoreError:
         return "us-east-1"
 
 
@@ -121,7 +122,7 @@ def _bucket_size_metrics(cw_client: Any, bucket_name: str) -> dict[str, Any]:
             EndTime=end,
             ScanBy="TimestampDescending",
         )
-    except (BotoCoreError, ClientError):
+    except BotoCoreError, ClientError:
         return dict(empty)
 
     object_count: int | None = None
@@ -277,7 +278,7 @@ def aws_account_singleton(session: Any, *, client_for: Any = None) -> Iterator[d
         iam = session.client("iam", region_name="us-east-1")
         alias_resp = without_response_metadata(iam.list_account_aliases())
         aliases = list(alias_resp.get("AccountAliases", []) or [])
-    except (BotoCoreError, ClientError):
+    except BotoCoreError, ClientError:
         # The account alias is a nicety, not load-bearing — a denied or
         # failed ListAccountAliases just falls the name back to the id form.
         aliases = []
@@ -327,11 +328,9 @@ def cloudfront_distributions_with_oac(session: Any, *, client_for: Any = None) -
             for oac_id in oac_ids:
                 if oac_id not in oac_cache:
                     try:
-                        resp = without_response_metadata(
-                            cf.get_origin_access_control(Id=oac_id)
-                        )
+                        resp = without_response_metadata(cf.get_origin_access_control(Id=oac_id))
                         oac_cache[oac_id] = resp.get("OriginAccessControl") or resp
-                    except (BotoCoreError, ClientError):
+                    except BotoCoreError, ClientError:
                         # A per-OAC miss is non-fatal: the distribution still
                         # collects; the slot records None so the gap is visible.
                         oac_cache[oac_id] = None
@@ -356,7 +355,7 @@ def dynamodb_tables_described(session: Any, *, client_for: Any) -> Iterator[dict
         for name in page.get("TableNames", []):
             try:
                 desc = without_response_metadata(client.describe_table(TableName=name))
-            except (BotoCoreError, ClientError):
+            except BotoCoreError, ClientError:
                 # Per-table failures are skipped silently here; the engine's
                 # per-entry error path (ENTRY_SKIPPED) is too coarse for a
                 # per-item miss. The run's RGTA sweep would still cover tags
@@ -402,14 +401,12 @@ def eventbridge_rules_with_targets(session: Any, *, client_for: Any) -> Iterator
                         arn = target.get("Arn")
                         if arn:
                             target_arns.append(arn)
-            except (BotoCoreError, ClientError):
+            except BotoCoreError, ClientError:
                 # A per-rule ListTargetsByRule failure is non-fatal: the rule
                 # still collects, just without resolved target edges.
                 target_arns = []
             target_arns = list(dict.fromkeys(target_arns))
-            lambda_arns = [
-                a for a in target_arns if a.startswith("arn:aws:lambda:") and ":function:" in a
-            ]
+            lambda_arns = [a for a in target_arns if a.startswith("arn:aws:lambda:") and ":function:" in a]
             yield {**rule, "_target_arns": target_arns, "_lambda_target_arns": lambda_arns}
 
 
@@ -431,12 +428,259 @@ def iam_oidc_providers_described(session: Any, *, client_for: Any = None) -> Ite
         if not arn:
             continue
         try:
-            details = without_response_metadata(
-                client.get_open_id_connect_provider(OpenIDConnectProviderArn=arn)
-            )
-        except (BotoCoreError, ClientError):
+            details = without_response_metadata(client.get_open_id_connect_provider(OpenIDConnectProviderArn=arn))
+        except BotoCoreError, ClientError:
             continue
         yield {**details, "ProviderArn": arn}
+
+
+# An API Gateway v2 Lambda-proxy IntegrationUri embeds the function's invoke
+# path: .../functions/<function-arn>/invocations. Capture the embedded ARN.
+_LAMBDA_INTEGRATION_URI_RE = re.compile(r"/functions/(arn:aws:lambda:[^/]+)/invocations$")
+
+# A Cognito JWT authorizer's Issuer names the pool:
+# https://cognito-idp.<region>.amazonaws.com/<pool-id>
+_COGNITO_ISSUER_RE = re.compile(
+    r"^https://cognito-idp\.[a-z0-9-]+\.amazonaws\.com/(?P<pool>[a-z0-9-]+_[A-Za-z0-9]+)$",
+    re.IGNORECASE,
+)
+
+
+def _client_region(client: Any) -> str:
+    """The region a client is bound to, tolerating non-boto3 stand-ins.
+
+    Real boto3 clients carry ``meta.region_name``; test doubles often don't.
+    An unknown region degrades to ``""`` (a synthesized ARN then simply has an
+    empty region segment) rather than failing enumeration.
+    """
+    region = getattr(getattr(client, "meta", None), "region_name", None)
+    return region if isinstance(region, str) else ""
+
+
+def _lambda_arn_from_integration_uri(uri: str) -> str | None:
+    """Extract the unqualified Lambda ARN from a v2 Lambda-proxy IntegrationUri.
+
+    The embedded ARN may carry an alias/version qualifier
+    (``...:function:name:live``); the Lambda node's natural key is the
+    *unqualified* ``FunctionArn``, so a trailing qualifier is stripped.
+    """
+    match = _LAMBDA_INTEGRATION_URI_RE.search(uri or "")
+    if not match:
+        return None
+    arn = match.group(1)
+    parts = arn.split(":")
+    if len(parts) == 8:  # arn:aws:lambda:region:acct:function:name:qualifier
+        arn = ":".join(parts[:7])
+    return arn
+
+
+def apigateway_http_apis_detailed(session: Any, *, client_for: Any) -> Iterator[dict[str, Any]]:
+    """Enumerate API Gateway v2 HTTP APIs (regional) with sub-resources resolved.
+
+    ``GetApis`` returns the API shell; what it *fronts* lives behind four
+    per-API listings — stages, routes, integrations, authorizers. This
+    custom_fn fans those out and attaches them lossless (``_stages`` /
+    ``_routes`` / ``_integrations`` / ``_authorizers`` → ``configuration``),
+    then derives the two edge-resolvable keys:
+
+    - ``_integration_lambda_arns`` — unqualified Lambda ARNs parsed from
+      Lambda-proxy IntegrationUris (the ``INVOKES`` edge).
+    - ``_authorizer_user_pool_ids`` — Cognito pool ids parsed from JWT
+      authorizer issuers (the ``AUTHENTICATES_VIA`` edge).
+
+    ``GetApis`` carries no ARN; ``_api_arn`` is synthesized in the documented
+    ``arn:aws:apigateway:<region>::/apis/<id>`` form as the natural key.
+    """
+    client = client_for("apigatewayv2")
+    region = _client_region(client)
+    for page in _pages(client, "get_apis"):
+        for api in page.get("Items", []):
+            api_id = api.get("ApiId")
+            if not api_id:
+                continue
+            sub: dict[str, list[dict[str, Any]]] = {}
+            for key, method in (
+                ("_stages", "get_stages"),
+                ("_routes", "get_routes"),
+                ("_integrations", "get_integrations"),
+                ("_authorizers", "get_authorizers"),
+            ):
+                items: list[dict[str, Any]] = []
+                try:
+                    for spage in _pages(client, method, ApiId=api_id):
+                        items.extend(spage.get("Items", []))
+                except BotoCoreError, ClientError:
+                    # A per-API sub-listing failure is non-fatal: the API
+                    # still collects, just without that facet (and without
+                    # the edges derived from it).
+                    items = []
+                sub[key] = items
+            lambda_arns = [
+                arn
+                for integ in sub["_integrations"]
+                if (arn := _lambda_arn_from_integration_uri(integ.get("IntegrationUri") or ""))
+            ]
+            pool_ids = []
+            for auth in sub["_authorizers"]:
+                issuer = ((auth.get("JwtConfiguration") or {}).get("Issuer") or "").strip()
+                match = _COGNITO_ISSUER_RE.match(issuer)
+                if match:
+                    pool_ids.append(match.group("pool"))
+            yield {
+                **api,
+                **sub,
+                "_api_arn": f"arn:aws:apigateway:{region}::/apis/{api_id}",
+                "_integration_lambda_arns": list(dict.fromkeys(lambda_arns)),
+                "_authorizer_user_pool_ids": list(dict.fromkeys(pool_ids)),
+            }
+
+
+def cognito_user_pools_described(session: Any, *, client_for: Any) -> Iterator[dict[str, Any]]:
+    """Enumerate Cognito user pools (regional) and describe each.
+
+    ``ListUserPools`` returns id/name summaries; ``DescribeUserPool`` is the
+    per-pool fan-out for the ARN, MFA posture, hosted domain, and inline
+    ``UserPoolTags``. Yields the ``UserPool`` sub-object so ``Id`` — the pool
+    id JWT issuers embed — sits at the root as the natural key (which is what
+    lets an API Gateway authorizer edge resolve by identity).
+    """
+    client = client_for("cognito-idp")
+    for page in _pages(client, "list_user_pools", MaxResults=60):
+        for summary in page.get("UserPools", []):
+            pool_id = summary.get("Id")
+            if not pool_id:
+                continue
+            try:
+                desc = without_response_metadata(client.describe_user_pool(UserPoolId=pool_id))
+            except BotoCoreError, ClientError:
+                continue
+            pool = desc.get("UserPool") or {}
+            if pool:
+                yield pool
+
+
+def kms_keys_described(session: Any, *, client_for: Any) -> Iterator[dict[str, Any]]:
+    """Enumerate KMS keys (regional) with aliases and tags resolved.
+
+    ``ListKeys`` returns id+ARN only; ``DescribeKey`` supplies state, manager
+    (AWS vs CUSTOMER), spec, and description. ``ListAliases`` is fetched once
+    and joined by TargetKeyId (``_aliases``); ``ListResourceTags`` fans out
+    per key (``_tags``, normalized TagKey/TagValue -> mapping). AWS-managed
+    keys commonly deny Describe/ListResourceTags under a read-only principal —
+    each fan-out degrades independently so the key still collects from the
+    listing shell.
+
+    ``_display_name`` is the first alias (sans ``alias/``) or the key id —
+    KMS keys have no name of their own.
+    """
+    client = client_for("kms")
+    aliases_by_key: dict[str, list[str]] = {}
+    for page in _pages(client, "list_aliases"):
+        for alias in page.get("Aliases", []):
+            target = alias.get("TargetKeyId")
+            alias_name = alias.get("AliasName")
+            if target and alias_name:
+                aliases_by_key.setdefault(target, []).append(alias_name)
+    for page in _pages(client, "list_keys"):
+        for key in page.get("Keys", []):
+            key_id = key.get("KeyId")
+            if not key_id:
+                continue
+            try:
+                described = without_response_metadata(client.describe_key(KeyId=key_id))
+                meta = described.get("KeyMetadata") or {}
+            except BotoCoreError, ClientError:
+                meta = {"KeyId": key_id, "Arn": key.get("KeyArn")}
+            tags: dict[str, str] = {}
+            try:
+                for tpage in _pages(client, "list_resource_tags", KeyId=key_id):
+                    for tag in tpage.get("Tags", []):
+                        tag_key = tag.get("TagKey")
+                        if tag_key is not None:
+                            tags[tag_key] = tag.get("TagValue") or ""
+            except BotoCoreError, ClientError:
+                tags = {}
+            alias_names = aliases_by_key.get(key_id, [])
+            display = alias_names[0].removeprefix("alias/") if alias_names else key_id
+            yield {**meta, "_aliases": alias_names, "_tags": tags, "_display_name": display}
+
+
+def sqs_queues_described(session: Any, *, client_for: Any) -> Iterator[dict[str, Any]]:
+    """Enumerate SQS queues (regional) with attributes and tags resolved.
+
+    ``ListQueues`` returns URL strings only; ``GetQueueAttributes(All)`` is
+    the per-queue fan-out for the ARN, retention, visibility, and encryption
+    posture, and ``ListQueueTags`` for tags. The queue name is derived from
+    the ARN's last segment (``_queue_name``).
+    """
+    client = client_for("sqs")
+    for page in _pages(client, "list_queues"):
+        for url in page.get("QueueUrls", []) or []:
+            try:
+                attrs = (
+                    without_response_metadata(client.get_queue_attributes(QueueUrl=url, AttributeNames=["All"])).get(
+                        "Attributes"
+                    )
+                    or {}
+                )
+            except BotoCoreError, ClientError:
+                continue
+            if not attrs.get("QueueArn"):
+                continue
+            tags: dict[str, str] = {}
+            try:
+                tags = without_response_metadata(client.list_queue_tags(QueueUrl=url)).get("Tags") or {}
+            except BotoCoreError, ClientError:
+                tags = {}
+            yield {
+                **attrs,
+                "QueueUrl": url,
+                "_queue_name": attrs["QueueArn"].rsplit(":", 1)[-1],
+                "_tags": tags,
+            }
+
+
+def cloudtrail_trails_described(session: Any, *, client_for: Any) -> Iterator[dict[str, Any]]:
+    """Enumerate CloudTrail trails (regional, home-region only) with status + tags.
+
+    ``DescribeTrails(includeShadowTrails=False)`` returns the region's own
+    trails; a multi-region trail is additionally filtered to its
+    ``HomeRegion`` so one trail yields one node per run, never a
+    duplicate-id per region (GRIFT rejects duplicate entity ids in a batch).
+    ``GetTrailStatus`` supplies ``_is_logging``; ``ListTags`` normalizes the
+    Key/Value TagsList into ``_tags``.
+    """
+    client = client_for("cloudtrail")
+    region = _client_region(client)
+    listing = without_response_metadata(client.describe_trails(includeShadowTrails=False))
+    for trail in listing.get("trailList", []):
+        arn = trail.get("TrailARN")
+        if not arn:
+            continue
+        home = trail.get("HomeRegion")
+        if home and home != region:
+            continue
+        status: dict[str, Any] = {}
+        try:
+            status = without_response_metadata(client.get_trail_status(Name=arn))
+        except BotoCoreError, ClientError:
+            status = {}
+        tags: dict[str, str] = {}
+        try:
+            for tpage in _pages(client, "list_tags", ResourceIdList=[arn]):
+                for tag_set in tpage.get("ResourceTagList", []):
+                    for tag in tag_set.get("TagsList", []) or []:
+                        tag_key = tag.get("Key")
+                        if tag_key is not None:
+                            tags[tag_key] = tag.get("Value") or ""
+        except BotoCoreError, ClientError:
+            tags = {}
+        yield {
+            **trail,
+            "_status": status,
+            "_is_logging": bool(status.get("IsLogging")),
+            "_tags": tags,
+        }
 
 
 # Manifest custom_fn name -> callable.
@@ -448,6 +692,11 @@ _CUSTOM_FNS = {
     "dynamodb_tables_described": dynamodb_tables_described,
     "eventbridge_rules_with_targets": eventbridge_rules_with_targets,
     "iam_oidc_providers_described": iam_oidc_providers_described,
+    "apigateway_http_apis_detailed": apigateway_http_apis_detailed,
+    "cognito_user_pools_described": cognito_user_pools_described,
+    "kms_keys_described": kms_keys_described,
+    "sqs_queues_described": sqs_queues_described,
+    "cloudtrail_trails_described": cloudtrail_trails_described,
 }
 
 

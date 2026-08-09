@@ -1,0 +1,16 @@
+{
+  "slug": "ENCRYPTED_WITH__aws_core",
+  "name": "Encrypted With",
+  "description": "A resource's data-at-rest is encrypted with a KMS key (S3 default encryption, log-group encryption, SQS SSE-KMS, CloudTrail log encryption, Secrets Manager secret encryption). Only customer-referenced full key ARNs resolve; alias and bare-key-id references, and AWS-owned keys, emit no edge.",
+  "sources": [
+    "aws_core__aws_s3_bucket",
+    "aws_core__aws_cloudwatch_log_group",
+    "aws_core__aws_sqs_queue",
+    "aws_core__aws_cloudtrail_trail",
+    "aws_core__aws_secrets_manager_secret"
+  ],
+  "targets": ["aws_core__aws_kms_key"],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}

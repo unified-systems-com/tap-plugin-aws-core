@@ -32,21 +32,31 @@ model-gap work).
 ## Collector status — boto3 pivot
 
 The Steampipe-based collector (and the `session/codex-prime` tooling
-layer built on it) was excised on 2026-05-17. The replacement is a
-from-scratch **manifest-driven boto3 collector**, now **specified but
-not yet built**:
+layer built on it) was excised on 2026-05-17. The replacement — the
+**manifest-driven boto3 collector** — is built and running:
 
 > **Canonical spec:** [`specs/spec-aws-core-collector-v0.md`](specs/spec-aws-core-collector-v0.md)
 > — a generic engine driven by a JSON resource manifest; per-resource
-> code only as two bounded, write-once seams (fan-out hydrate; deferred
-> policy-document resolver). That spec is authoritative for collector
-> behavior; this file is orientation only.
+> code only as bounded, write-once seams (custom_fn enumeration glue,
+> fan-out hydrate, named edge transforms). That spec is authoritative
+> for collector behavior; this file is orientation only.
 
-No collector is registered yet: `plugins/aws_core/collectors/` is empty
-and `apps.py` registers none. Build is fenced to the
-`step-rampart-sam-demo` resource set (S3, CloudFront, ACM, Route 53,
-Lambda, IAM role, CloudWatch log group, EventBridge rule), one account,
-no deletes.
+Coverage is three-tier and the manifest is the honest inventory
+(`collectors/boto3_collector/aws_resource_manifest.json`):
+
+- **Collected (17 manifest entries):** account, Lambda, IAM role,
+  IAM OIDC provider, EventBridge rule, CloudWatch log group, ACM
+  certificate, CloudFront distribution, S3 bucket, Route 53 zone,
+  DynamoDB table, API Gateway v2 HTTP API, Cognito user pool, KMS key,
+  SQS queue, CloudTrail trail, Secrets Manager secret (metadata only —
+  the collector never calls `GetSecretValue`).
+- **Modeled, not yet collected:** the remaining `models/*.py` types
+  (EC2/VPC networking set, ECS/EKS, RDS, ALB/ELB, and friends) — nodes
+  exist as vocabulary; no manifest entry enumerates them yet.
+- **Everything else:** unmodeled; edges to unmodeled targets drop with
+  a structured warning (v0 fence).
+
+Collection remains one-account, additive-only, no deletes.
 
 The **complete** Steampipe effort is recoverable in one place:
 

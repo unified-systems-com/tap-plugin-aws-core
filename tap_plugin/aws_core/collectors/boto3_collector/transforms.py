@@ -53,10 +53,64 @@ def s3_bucket_name_from_origin_domain(value: object) -> str | None:
     return f"arn:aws:s3:::{match.group('bucket')}"
 
 
+# A full KMS key ARN: arn:aws:kms:<region>:<acct>:key/<key-id>. Aliases
+# (alias/...) and bare key ids don't match — see kms_key_arn_or_none.
+_KMS_KEY_ARN_RE = re.compile(r"^arn:aws:kms:[a-z0-9-]+:\d{12}:key/[0-9a-fA-F-]+$")
+
+
+def kms_key_arn_or_none(value: object) -> str | None:
+    """A KMS key reference -> the target key's natural key (its ARN), or None.
+
+    AWS surfaces key references in three forms — full key ARN, bare key id,
+    alias name. Only the full ARN equals the ``aws_kms_key`` natural key
+    without an account/region join, so anything else drops (no bogus edge).
+    """
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    return candidate if _KMS_KEY_ARN_RE.match(candidate) else None
+
+
+def s3_bucket_arn_from_name(value: object) -> str | None:
+    """A bare S3 bucket name -> the bucket's natural key (its ARN).
+
+    Like ``s3_bucket_name_from_origin_domain``, the S3 ARN is globally
+    derivable from the name alone (``arn:aws:s3:::<bucket>``). A value that
+    already is an S3 ARN passes through unchanged.
+    """
+    if not isinstance(value, str) or not value.strip():
+        return None
+    candidate = value.strip()
+    if candidate.startswith("arn:aws:s3:::"):
+        return candidate
+    return f"arn:aws:s3:::{candidate}"
+
+
+def log_group_name_from_arn(value: object) -> str | None:
+    """A CloudWatch Logs log-group ARN -> the group's natural key (its name).
+
+    The log-group entry's natural key is ``logGroupName``, but referrers
+    (e.g. a trail's ``CloudWatchLogsLogGroupArn``) carry the ARN —
+    ``arn:aws:logs:<region>:<acct>:log-group:<name>[:*]``. Extract the name;
+    a non-log-group ARN drops.
+    """
+    if not isinstance(value, str):
+        return None
+    marker = ":log-group:"
+    index = value.find(marker)
+    if index == -1:
+        return None
+    name = value[index + len(marker) :].removesuffix(":*")
+    return name or None
+
+
 # Manifest transform name -> callable. The single source of truth wired into
 # the engine's TransformRegistry by build_transform_registry().
 _TRANSFORMS = {
     "s3_bucket_name_from_origin_domain": s3_bucket_name_from_origin_domain,
+    "kms_key_arn_or_none": kms_key_arn_or_none,
+    "s3_bucket_arn_from_name": s3_bucket_arn_from_name,
+    "log_group_name_from_arn": log_group_name_from_arn,
 }
 
 
