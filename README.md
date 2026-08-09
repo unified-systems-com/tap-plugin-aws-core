@@ -1,141 +1,212 @@
-# AWS Core Developer Notes
+# TAP AWS Core Plugin
 
-This file holds developer and AI-agent notes for the AWS Core plugin.
-It is intentionally plugin-local so the material can travel with `aws_core`
-when the plugin later moves back into its own repository or submodule.
+`aws_core` owns the TAP vocabulary for AWS resources and relationships, and the
+collector that populates it from a running AWS account:
 
-## Purpose
+- **41 TAP-managed AWS resource models** (`tap_plugin/aws_core/models/`)
+- **8 AWS edge types** (`tap_plugin/aws_core/edges/`)
+- **Reference GRIFT data** for regions and availability zones (`tap_plugin/aws_core/grift/`)
+- **The boto3 collector** — a manifest-driven engine that collects a single AWS
+  account into the grid (`tap_plugin/aws_core/collectors/boto3_collector/`)
+- **Specs** that are authoritative for all of the above (`specs/`)
+- **Skills** for catalog refresh and icon sourcing (`skills/`)
 
-`aws_core` owns the TAP vocabulary for AWS resources and relationships:
+Identity (enforced by the conformance gate): slug `aws_core` == dist
+`tap-plugin-aws-core` == namespace `tap_plugin.aws_core` == entry-point key.
+The version is derived from git tags via hatch-vcs; the plugin's Tier-0 `boto3`
+dependency travels with the package. `tap_cares` (in TAP core) owns the
+collector runtime, run records, secret mechanics, and the GRIFT import
+boundary; everything AWS-specific lives here.
 
-- TAP-managed AWS resource models
-- AWS graph edge types
-- AWS reference GRIFT data
-- AWS-native collectors that populate those models
-- documentation that explains model coverage and collection design
+## The collector
 
-`tap_cares` owns the collector runtime, run records, secret resolution,
-and GRIFT import boundary. AWS-specific collection behavior belongs here.
+The collector is **built and registered**: `apps.py` registers key `boto3`
+(scope `aws_core`) with the `tap_cares` collector registry, backed by exactly
+one `CollectorBase` subclass for all of AWS. There are deliberately **no
+per-service classes** — that is a load-bearing invariant
+(`req-aws-collector-runtime-7`), not a style choice. All per-resource knowledge
+lives in a JSON resource manifest
+(`collectors/boto3_collector/aws_resource_manifest.json`), schema-validated at
+load; the engine contains no per-resource-type branching.
 
-## Service icons
+The pipeline per run: resolve credentials → load + validate the manifest → for
+each entry, per region, drive the source → project declared fields via jsonpath
+(the full AWS payload is always retained verbatim in `configuration`) → decorate
+tags → emit nodes, then edges → submit **one GRIFT batch** → write a run
+summary. Supporting behavior:
 
-New AWS-service BaseModels must not get hand-drawn icons. The `get-aws-icons`
-skill (`skills/get-aws-icons/`) sources the official AWS Architecture icon for a
-model's `ENTITY_ICON` key: it downloads the pack on demand to a tmp dir (never
-committed, never persisted — re-downloaded per run by design) and installs the
-SVG normalized to the existing 80×80 AWS-branded convention. `add-model` Step 7
-points here, so creating a service model picks this up automatically. The first
-real run should also replace the hand-drawn placeholders `aws-cloudfront`,
-`aws-cloudwatch`, `aws-eventbridge` (created during the boto3 collector
-model-gap work).
+- **Sources** are either a bare `aws_op` (botocore paginator when available) or
+  a registered `custom_fn` — thin per-service glue for resources AWS cannot
+  enumerate richly in one call. Custom fns compose the write-once
+  `hydrate_item` fan-out template; multi-call complexity is quarantined there,
+  never in the engine.
+- **Hydrate** records per-sub-call status (`ok` / `absent` / `denied` /
+  `error`) and never conflates "no policy" with "could not read the policy" —
+  opposite compliance conclusions.
+- **Tags** ride a Resource Groups Tagging API sweep by default (one paginated
+  call per region, scoped by the manifest's `resource_type_filter` set), with a
+  per-service side-quest shape for services RGTA handles poorly. RGTA
+  decorates; it never drives discovery.
+- **Audit ledger**: every AWS call's request id + outcome + AWS-side timestamp
+  is captured at the botocore boundary and drained into
+  `CollectionJob.results`, so a run can be correlated against the account's own
+  CloudTrail.
+- **Resilience**: a per-(entry, region) failure — missing permission, service
+  absent in a region — is classified, recorded as a structured warn, and
+  skipped; only unrecoverable conditions (bad secret, no region scope,
+  unreachable STS) fail the run.
+- **Identity** is deterministic (`uuid5` over type + natural key), so re-runs
+  upsert. No deletion/reaping: absence from a run never deletes a node (v0
+  non-goal).
 
-## Collector status — boto3 pivot
+### Credentials
 
-The Steampipe-based collector (and the `session/codex-prime` tooling
-layer built on it) was excised on 2026-05-17. The replacement is a
-from-scratch **manifest-driven boto3 collector**, now **specified but
-not yet built**:
+The collector never reads credential files; credentials resolve through the
+`tap_cares` secrets subsystem at the well-known ref `aws_core/boto_collector`
+(the operator drops `aws_core/boto_collector.secret.json` under
+`TAP_SECRETS_ROOT`). Two kinds are supported (shapes owned by this plugin —
+`specs/spec-aws-core-secrets.md`):
 
-> **Canonical spec:** [`specs/spec-aws-core-collector-v0.md`](specs/spec-aws-core-collector-v0.md)
-> — a generic engine driven by a JSON resource manifest; per-resource
-> code only as two bounded, write-once seams (fan-out hydrate; deferred
-> policy-document resolver). That spec is authoritative for collector
-> behavior; this file is orientation only.
+- `aws_static_access_key` — static keys for an account we own.
+- `aws_assumed_role` — cross-account: a base session calls STS `AssumeRole`
+  with a **mandatory External ID**; short-lived credentials back the working
+  session. `collectors/boto3_collector/handoff/` holds the operator handoff
+  (CloudFormation + Terraform templates for the partner's read-only role, plus
+  the collector-principal policy for our side).
 
-No collector is registered yet: `plugins/aws_core/collectors/` is empty
-and `apps.py` registers none. Build is fenced to the
-`step-rampart-sam-demo` resource set (S3, CloudFront, ACM, Route 53,
-Lambda, IAM role, CloudWatch log group, EventBridge rule), one account,
-no deletes.
+Both kinds carry operator-owned region scoping (`data.regions_allowed` /
+`data.region`) and the optional `data.expected_account_id` assert-on-land — if
+set, the `GetCallerIdentity` account must match or the run fails visibly,
+catching the "collected a real but wrong account" failure mode.
 
-The **complete** Steampipe effort is recoverable in one place:
+## Service coverage — honest inventory
 
-```
-git tag park/steampipe-tooling
-```
+Three tiers, from most to least covered. A model without a manifest entry
+renders fine on the grid if data arrives some other way (GRIFT import), but the
+collector will not populate it.
 
-That tag holds the deleted code, the design spec
-(`spec-aws-steampipe-collector-v0.md`), the table inventory
-(`docs/steampipe-aws-table-inventory.yaml`), the setup guide, and the
-plugin tooling layer. It is the durable record of what was learned —
-mine it to guide the boto3 build, do not resurrect it wholesale. The
-decision rationale lives in the AAR at
-`docs/aar/2026-05-16-aws-collector-sprint-sprawl.md`.
+### Collected by the boto3 collector (11 manifest entries)
 
-What is **preserved and collector-agnostic** (the durable WHAT that
-guides the boto3 build): the 37 resource-type models, 15 edge types,
-reference GRIFT, and the specs `spec-aws-core-v0.md`,
-`spec-aws-core-catalog.md`, `spec-aws-projection-top-level-minimal.md`.
+| AWS service | Resource type(s) | Edges emitted |
+| --- | --- | --- |
+| STS | account (synthesized node — no AWS API enumerates "the account") | — |
+| Lambda | functions | ASSUMES_ROLE, WRITES_LOGS |
+| IAM | roles | FEDERATES_INTO |
+| IAM | OIDC providers | — |
+| EventBridge | rules (with targets) | ASSUMES_ROLE, INVOKES |
+| CloudWatch Logs | log groups | — |
+| ACM | certificates | — |
+| CloudFront | distributions (with origin access control) | RETRIEVES_CONTENT_FROM, RETRIEVES_CERT_FROM |
+| S3 | buckets (hydrated: per-bucket `GetBucket*` fan-out + size metrics) | — |
+| Route 53 | hosted zones (with alias targets) | ROUTES_TRAFFIC |
+| DynamoDB | tables (described) | — |
 
-The table-inventory decision buckets below remain a useful planning
-lens (they classify AWS resources, not Steampipe specifics) — the
-boto3 collector should reach the same per-resource classifications:
+Tags for these ride the RGTA sweep. This set is the demo-driven v0 fence
+(`req-aws-collector-scope-2`) — driven by the reproduced demo stack, not by
+completeness.
 
-- `implemented_model`: an AWS resource maps to an existing `aws_core` model.
-- `model_gap_candidate`: a likely durable AWS resource that may deserve a model.
-- `edge_or_attribute_candidate`: a relationship, attachment, association, rule,
-  or detailed configuration that likely enriches existing nodes or creates
-  edges.
-- `evidence_candidate`: a finding, evaluation, compliance result, health event,
-  recommendation, or similar observation.
-- `metric_candidate`: a metric/time-series source that should not become a normal
-  resource node.
-- `attribute_or_observation_candidate`: a backup, snapshot, report, version,
-  scan, log, or other detail that needs more judgment.
+### Seeded from reference GRIFT (not collected)
 
-## Model Expansion Heuristic
+Regions and availability zones ship as GRIFT seed data
+(`grift/regions.grift.json`), kept current by the `refresh-aws-catalog` skill
+rather than by the collector.
 
-For AWS inventory, the default heuristic is:
+### Modeled, but NOT collected (28 models)
 
-> Anything with a stable ARN is a candidate TAP node unless it is clearly only
-> an embedded configuration detail, transient execution artifact, metric sample,
-> or policy statement fragment.
+These have first-class TAP models and icons but **no manifest entry** — the
+collector does not populate them today:
 
-This is a heuristic, not a law. A non-ARN resource can still be a first-class
-node when it is structurally important, edge-worthy, or compliance-relevant.
-VPCs, subnets, route tables, security groups, and internet gateways are all
-first-class graph objects even when AWS APIs foreground provider IDs over ARNs.
+- **Compute**: EC2 instances, EBS volumes
+- **Containers**: ECS clusters / services / tasks, EKS clusters, ECR repositories
+- **Networking**: VPCs, subnets, security groups, network ACLs, internet
+  gateways, NAT gateways, Elastic IPs, route tables, ALBs, classic ELBs,
+  target groups, Network Firewalls
+- **Data**: RDS instances, Elasticsearch/OpenSearch domains, ElastiCache clusters
+- **Identity & secrets**: IAM users, IAM policies, Secrets Manager secrets,
+  SSM parameters
+- **AI/ML**: Bedrock models, SageMaker endpoints
 
-## Collector Roadmap
+### Everything else
 
-Steps 1–3 are **done**: the collector, its credential/secret resolution,
-and its run/config shape are specified in
-[`specs/spec-aws-core-collector-v0.md`](specs/spec-aws-core-collector-v0.md)
-(credentials reuse the existing `tap_cares` `aws_static_access_key`
-secret path; there is no per-`Collector` config in v0). Remaining:
+Any AWS service not listed above is neither modeled nor collected. The
+expansion heuristic: *anything with a stable ARN is a candidate TAP node unless
+it is clearly only an embedded configuration detail, transient execution
+artifact, metric sample, or policy statement fragment.* A non-ARN resource can
+still be first-class when it is structurally important, edge-worthy, or
+compliance-relevant (the VPC family is the standing example).
 
-4. Add the three unmodeled demo resource types — CloudFront distribution,
-   CloudWatch log group, EventBridge rule — via the `add-model` skill
-   under `spec-aws-core-v0` (S3 / ACM / Route 53 / Lambda / IAM role
-   already exist).
-5. Build the manifest engine and a first vertical slice (a single-call
-   resource — Lambda — end to end), then fan out across the demo set.
-6. Expand by resource family by adding manifest entries, not modules.
+## Adding a new service
 
-Deletes and reaping remain explicitly deferred; when they arrive they
-route through GRIFT and the service layer, never a collector side
-channel (see the spec's v0 Non-Goals).
+The design bet (validated before the engine was built): ~80% of AWS resources
+and edges are declarable as manifest data, so adding a service is usually a
+**manifest entry, not a module**. In order:
 
-## First Collector Slice
+1. **Classify the thing.** Is it a node (durable resource), an
+   edge/attribute on an existing node, evidence (a finding/evaluation), or a
+   metric? Only nodes get models and manifest entries; apply the ARN heuristic
+   above.
+2. **Model, if missing.** Use the core repo's `add-model` skill against a dev
+   workspace with this plugin checked out editable. That registers the model in
+   `tap-plugin.toml` `[models]` and generates the migration. Source the icon
+   with the `get-aws-icons` skill (`skills/get-aws-icons/`) — official AWS
+   Architecture icons only, never hand-drawn.
+3. **Edge types, if the relationship is new.** Use the `add-edge` skill; edge
+   definitions land as `edges/<TYPE>.edge.json` registered in
+   `tap-plugin.toml` `[edges]`.
+4. **Write the manifest entry** in
+   `collectors/boto3_collector/aws_resource_manifest.json`. Required per entry:
+   `entity_type`, `service`, `scope` (`global` | `regional`), `source`, `why`
+   (every entry and every hydrate op carries its rationale — the schema
+   requires it), `items_path`, `natural_key`, `fields` (jsonpath → typed model
+   columns). Add a `tags` block (`source: rgta` + `resource_type_filter` joins
+   the sweep automatically; a per-service side-quest shape exists for the
+   outliers) and declarative `edges` rules (`value_path`, `target_type`,
+   `key_kind`, `edge_type`, `direction`). The entry is validated against
+   `aws_resource_manifest.schema.json` at load; an invalid manifest fails the
+   run visibly.
+5. **Code only as a last resort.** If one list call isn't enough, first try a
+   manifest-declared `hydrate` op list (S3-style fan-out — declarative, no new
+   code). Only when identifier binding or region routing genuinely needs glue,
+   add a `custom_fn` to `collectors/boto3_collector/customfns.py`, registered
+   in the plugin-local registry and composing `hydrate_item`. Never add a
+   per-service class.
+6. **Permissions.** Ensure the collector credential can perform the new read
+   ops: the cross-account role uses AWS-managed `SecurityAudit` (covers most
+   read APIs); a static-key principal's policy may need extending. Keep
+   `collectors/boto3_collector/handoff/` in sync if the partner-facing
+   footprint changes.
+7. **Test and validate.** Tests live in `tap_plugin/aws_core/tests/` and ship
+   in the wheel. Add coverage alongside the existing `test_boto3_collector_*`
+   suites, then run `pytest --pyargs tap_plugin.aws_core` and
+   `manage.py validate_plugin aws_core --strict` from a consuming instance —
+   "it boots" is not a completion check.
+8. **Release.** Version comes from the git tag (hatch-vcs); tag and re-release
+   so installs pick up the change.
 
-The first slice is the manifest engine proven end to end on **one
-single-call resource (Lambda)** before fanning out across the demo set:
+## Specs (authoritative — this README is orientation only)
 
-- resolve AWS credentials through the `tap_cares` `aws_static_access_key`
-  secret
-- load + schema-validate the resource manifest
-- drive one manifest entry's `aws_op`, project declared fields via
-  jsonpath, retain the full payload in `configuration`
-- emit nodes, then edges in a second pass (deterministic `uuid5`
-  identity; an edge to an unmodeled target is dropped with a `warn`)
-- submit one GRIFT batch via the `tap_cares` collector path; set a useful
-  `CollectionJob.summary`
+| Spec | Owns |
+| --- | --- |
+| `specs/spec-aws-core-v0.md` | The model + edge vocabulary |
+| `specs/spec-aws-core-collector-v0.md` | Collector behavior end to end (the canonical contract) |
+| `specs/spec-aws-core-secrets.md` | The two AWS credential kinds' `data` shapes |
+| `specs/spec-aws-core-catalog.md` | Catalog refresh (regions/AZs/icons) |
+| `specs/spec-aws-projection-top-level-minimal.md` | Field-projection posture |
 
-No deletion, reaping, or implied-absence semantics in the slice. The
-authoritative contract is the spec; this is the orientation summary.
+## Skills
 
-Implementation status: **not built** — `plugins/aws_core/collectors/` is
-empty and `apps.py` registers no collector. The credential/config/target
-*patterns* from the parked Steampipe spec (`park/steampipe-tooling`)
-informed the design and were re-expressed clean-room; no code was copied
-(`AGENTS.md` OSS rule).
+- `skills/get-aws-icons/` — source the official AWS Architecture icon for a
+  model's `ENTITY_ICON` key (downloads the pack to a tmp dir per run, installs
+  normalized to the 80×80 convention; `--all-missing` backfills).
+- `skills/refresh-aws-catalog/` — periodic reference-data refresh for regions
+  and AZs; incremental, with an authoritative-evidence deprecation policy.
+
+## History
+
+This plugin was evicted from the TAP monorepo into this repository; the
+pre-eviction history (including the parked Steampipe collector effort, its
+`park/steampipe-tooling` tag, and the AAR that motivated the manifest-driven
+boto3 pivot) lives in the core monorepo, not here. The Cartography /
+ScoutSuite / Prowler / CloudQuery prior-art study is summarized in the
+collector spec; no open-source code is incorporated — implementations are
+clean-room per the project's OSS licensing boundary.
