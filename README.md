@@ -18,6 +18,12 @@ dependency travels with the package. `tap_cares` (in TAP core) owns the
 collector runtime, run records, secret mechanics, and the GRIFT import
 boundary; everything AWS-specific lives here.
 
+> **⚠️ The collector is additive-only.** Deletion/reaping has not been built:
+> a run only creates and upserts. A resource deleted in AWS **stays on the
+> grid** — absence from a run never deletes or tombstones a node or edge, so
+> the grid reflects everything ever observed, not the account's current state.
+> Supporting deletion is the first roadmap item below.
+
 ## The collector
 
 The collector is **built and registered**: `apps.py` registers key `boto3`
@@ -56,8 +62,8 @@ summary. Supporting behavior:
   skipped; only unrecoverable conditions (bad secret, no region scope,
   unreachable STS) fail the run.
 - **Identity** is deterministic (`uuid5` over type + natural key), so re-runs
-  upsert. No deletion/reaping: absence from a run never deletes a node (v0
-  non-goal).
+  upsert. **Additive-only** (see the warning above): no deletion, reaping, or
+  implied-absence semantics exist yet (v0 non-goal).
 
 ### Credentials
 
@@ -182,6 +188,19 @@ and edges are declarable as manifest data, so adding a service is usually a
    "it boots" is not a completion check.
 8. **Release.** Version comes from the git tag (hatch-vcs); tag and re-release
    so installs pick up the change.
+
+## Roadmap
+
+1. **Support deletion.** Close the additive-only gap. Grid-state
+   reconciliation is specified but unbuilt (`req-aws-collector-reconcile`,
+   Backlog): compare a run's observed set against the grid and turn absence
+   into explicit, auditable removal — routed through GRIFT and the service
+   layer, never a collector side channel. Until this lands, the grid
+   accumulates resources that no longer exist in AWS.
+2. **Add more supported AWS types.** First, manifest entries for the 28
+   modeled-but-not-collected types (usually pure manifest work — no new code);
+   then models for unmodeled services per the ARN heuristic, following the
+   process above.
 
 ## Specs (authoritative — this README is orientation only)
 
