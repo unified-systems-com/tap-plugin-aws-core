@@ -27,8 +27,13 @@ from .edges import TransformRegistry
 #   bucket.s3-website.us-east-1.amazonaws.com
 # The bucket is everything before the first ``.s3`` segment. A non-S3 origin
 # (ALB, API Gateway, custom) does not match -> None (no edge).
+# Segment content is [a-z0-9] WITHOUT the dash: every '-' acts as a separator starting a
+# new segment instead of being ambiguous between separator and content. Same strings
+# accepted ("s3-website-us-east-1" is just more, shorter segments), but the regex is
+# linear — the old `(?:[.-][a-z0-9-]+)*` backtracked polynomially on crafted non-matching
+# input (CodeQL py/redos).
 _S3_ORIGIN_RE = re.compile(
-    r"^(?P<bucket>[^/]+?)\.s3(?:[.-][a-z0-9-]+)*\.amazonaws\.com$",
+    r"^(?P<bucket>[^/]+?)\.s3(?:[.-][a-z0-9]+)*\.amazonaws\.com$",
     re.IGNORECASE,
 )
 
