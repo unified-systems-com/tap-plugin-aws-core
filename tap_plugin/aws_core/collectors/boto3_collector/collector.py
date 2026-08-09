@@ -212,8 +212,12 @@ class Boto3Collector(CollectorBase):
                 "STS_UNREACHABLE",
                 f"STS AssumeRole/GetCallerIdentity failed: {exc}",
             )
-        # Assert-on-land: a cross-account role must land in the declared account
-        # (req-aws-core-secret-aws-assumed-role-4). No-op for the static kind.
+        # Assert-on-land: the resolved account must match the operator's declared
+        # `expected_account_id` when one is set. Applies to BOTH kinds — a
+        # cross-account role that landed in the wrong account
+        # (req-aws-core-secret-aws-assumed-role-4), and static keys that belong to a
+        # different account than declared (req-aws-core-secret-aws-static-5). A
+        # secret that omits the field is unaffected.
         mismatch = account_mismatch_error(data, account_id)
         if mismatch:
             self._abort(_SITE_ABORT_ACCOUNT_MISMATCH, "ACCOUNT_MISMATCH", mismatch)

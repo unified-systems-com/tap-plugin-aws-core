@@ -88,6 +88,32 @@ def test_static_kind_rejects_role_arn(monkeypatch):
         cred.resolve_aws_secret()
 
 
+def test_static_kind_accepts_expected_account_id(monkeypatch):
+    # req-aws-core-secret-aws-static-5: assert-on-land is available to the static
+    # kind, not only to assume-role. Before this the strict schema rejected the
+    # field, so declaring it produced a validation failure instead of a guard.
+    data = {**_BASE, "regions_allowed": ["us-east-1"], "expected_account_id": "123456789012"}
+    monkeypatch.setattr(cred, "resolve_secret", lambda _ref: _secret(cred.AWS_SECRET_KIND, data))
+    secret = cred.resolve_aws_secret()
+    assert secret.data["expected_account_id"] == "123456789012"
+
+
+def test_static_kind_rejects_malformed_expected_account_id(monkeypatch):
+    # The 12-digit pattern is enforced identically on both kinds — a typo'd or
+    # truncated account id must fail at resolution, not silently never match.
+    data = {**_BASE, "regions_allowed": ["us-east-1"], "expected_account_id": "12345"}
+    monkeypatch.setattr(cred, "resolve_secret", lambda _ref: _secret(cred.AWS_SECRET_KIND, data))
+    with pytest.raises(SecretValidationError):
+        cred.resolve_aws_secret()
+
+
+def test_expected_account_id_shape_is_shared_by_both_kinds():
+    # One fragment feeds both schemas; this fails if they are ever hand-edited apart.
+    static_prop = cred.AWS_STATIC_SCHEMA["properties"]["expected_account_id"]
+    assumed_prop = cred.AWS_ASSUMED_ROLE_SCHEMA["properties"]["expected_account_id"]
+    assert static_prop == assumed_prop
+
+
 def test_is_assumed_role_discriminates():
     assert cred.is_assumed_role({"role_arn": "arn"})
     assert not cred.is_assumed_role({"access_key_id": "a"})

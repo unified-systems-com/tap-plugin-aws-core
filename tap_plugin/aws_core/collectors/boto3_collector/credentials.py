@@ -21,6 +21,15 @@ kinds): a non-empty ``data.regions_allowed`` scopes regional collection to
 exactly those regions; absent, the singular ``data.region`` is the sole region;
 with neither, the run fails visibly.
 
+The optional ``data.expected_account_id`` is likewise carried by both kinds: if
+set, the account resolved by ``GetCallerIdentity`` must equal it or the run fails
+visibly (``req-aws-core-secret-aws-static-5`` /
+``req-aws-core-secret-aws-assumed-role-4``). On the cross-account kind it catches
+a role that landed in the wrong account; on the static kind it catches the more
+ordinary mistake of keys belonging to a different account than the operator
+thought — the failure mode that otherwise collects a *real but wrong* system and
+looks entirely successful while doing it.
+
 The collector never reads credential files directly — credentials resolve
 through the ``tap_cares`` secrets subsystem.
 """
@@ -57,6 +66,16 @@ _REGION_SCOPE_PROPS: dict[str, Any] = {
     },
 }
 
+# Assert-on-land is shared by both kinds, for the same reason region scope is:
+# `account_mismatch_error` reads `data['expected_account_id']` without consulting
+# the kind, and both call sites invoke it unconditionally. Kept as one fragment so
+# the two schemas cannot drift into disagreeing about a check that is already
+# uniform in the code.
+_EXPECTED_ACCOUNT_PROPS: dict[str, Any] = {
+    # 12-digit target account; enables the assert-on-land check.
+    "expected_account_id": {"type": "string", "pattern": "^[0-9]{12}$"},
+}
+
 # The static-credential fragment: reused verbatim as the `aws_assumed_role`
 # kind's `data.base` (the identity that CALLS AssumeRole).
 _STATIC_CREDS_PROPS: dict[str, Any] = {
@@ -66,14 +85,14 @@ _STATIC_CREDS_PROPS: dict[str, Any] = {
 }
 
 # aws_core owns this schema for the kind's `data` (req-aws-core-secret-aws-static-2).
-# Strict: `data` is exactly credentials + region scope; operator metadata
-# belongs in the secret's separate `metadata`, not here.
+# Strict: `data` is exactly credentials + region scope + the optional account
+# assertion; operator metadata belongs in the secret's separate `metadata`, not here.
 AWS_STATIC_SCHEMA: dict[str, Any] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "additionalProperties": False,
     "required": ["access_key_id", "secret_access_key"],
-    "properties": {**_STATIC_CREDS_PROPS, **_REGION_SCOPE_PROPS},
+    "properties": {**_STATIC_CREDS_PROPS, **_REGION_SCOPE_PROPS, **_EXPECTED_ACCOUNT_PROPS},
 }
 
 # aws_core owns this schema for the cross-account kind's `data`
@@ -94,8 +113,7 @@ AWS_ASSUMED_ROLE_SCHEMA: dict[str, Any] = {
             "required": ["access_key_id", "secret_access_key"],
             "properties": dict(_STATIC_CREDS_PROPS),
         },
-        # 12-digit target account; enables the assert-on-land check.
-        "expected_account_id": {"type": "string", "pattern": "^[0-9]{12}$"},
+        **_EXPECTED_ACCOUNT_PROPS,
         # STS RoleSessionName grammar: [\w+=,.@-]{2,64}.
         "role_session_name": {
             "type": "string",
@@ -231,9 +249,11 @@ def account_mismatch_error(data: Mapping[str, Any], account_id: str) -> str | No
     """Assert-on-land: a message if the resolved account ≠ expected, else None.
 
     ``data['expected_account_id']`` is the operator's declaration of the target
-    account; a mismatch means the assumed role landed somewhere unexpected
-    (req-aws-core-secret-aws-assumed-role-4). Account ids are non-secret
-    identifiers and are safe to surface in the message.
+    account. Kind-agnostic by design: on ``aws_assumed_role`` a mismatch means the
+    assumed role landed somewhere unexpected (req-aws-core-secret-aws-assumed-role-4);
+    on ``aws_static_access_key`` it means the keys belong to a different account than
+    the operator declared (req-aws-core-secret-aws-static-5). Account ids are
+    non-secret identifiers and are safe to surface in the message.
     """
     expected = data.get("expected_account_id")
     if expected and account_id != expected:
