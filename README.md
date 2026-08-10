@@ -208,6 +208,29 @@ and edges are declarable as manifest data, so adding a service is usually a
    modeled-but-not-collected types (usually pure manifest work — no new code);
    then models for unmodeled services per the ARN heuristic, following the
    process above.
+3. **`trial_provisioner` credential envelope for the trial-run harness.** The
+   live trial (`tests/test_trial_run_live.py`, the `add-aws-type` skill's
+   verification step) provisions sacrificial resources with WRITE-capable
+   credentials — today via ambient AWS credentials (SSO session / `AWS_PROFILE`),
+   deliberately disjoint from the read-only `boto_collector` collector secret.
+   The optional second lane — a tap-secrets envelope (scope `aws_core`, key
+   `trial_provisioner`, kind `aws_static_access_key`, opt-in via
+   `TAP_AWS_TRIAL_SECRET_ENVELOPE=1`) — is drafted but NOT wired: it goes
+   through TAP's `/manage-secret` review before first use (dedicated IAM
+   identity or not; whether `expected_account_id` is mandatory for a
+   write-capable key; preflight detection). The least-privilege policy draft
+   ships at `collectors/boto3_collector/handoff/trial-provisioner-policy.json`
+   (creates require the `tap:trial=sacrificial` request tag; deletes require
+   the matching resource tag). Build when a trial must run without a live
+   operator session.
+4. **kms_key + cloudtrail_trail trial-run legs.** The live trial covers 4 of
+   the 6 v0.4.0 types; these two are skip-with-reason (the skips print in
+   every gated run — see `test_trial_run_live.py`). `kms_key` is a policy
+   fork: KMS keys cannot be hard-deleted (`ScheduleKeyDeletion`, 7-day floor),
+   so every trial leaves pending-deletion residue — decide between accepting
+   the residue or keeping one long-lived reusable trial key. `cloudtrail_trail`
+   is scaffolding only: a trail needs an S3 bucket + bucket policy first, with
+   its own teardown ordering. Neither blocks the other four legs.
 
 ## Specs (authoritative — this README is orientation only)
 
