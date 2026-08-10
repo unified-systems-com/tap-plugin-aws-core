@@ -1,0 +1,53 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TrialProvisionTagOnCreate",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:CreateQueue",
+        "secretsmanager:CreateSecret",
+        "cognito-idp:CreateUserPool",
+        "apigateway:POST"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "aws:RequestTag/tap:trial": "sacrificial" }
+      }
+    },
+    {
+      "Sid": "TrialDeleteOnlySacrificial",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:DeleteQueue",
+        "sqs:TagQueue",
+        "secretsmanager:DeleteSecret",
+        "secretsmanager:TagResource",
+        "cognito-idp:DeleteUserPool",
+        "cognito-idp:TagResource",
+        "apigateway:DELETE"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "aws:ResourceTag/tap:trial": "sacrificial" }
+      }
+    },
+    {
+      "Sid": "TrialCollectionPathReads",
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity",
+        "sqs:ListQueues",
+        "sqs:GetQueueUrl",
+        "sqs:GetQueueAttributes",
+        "sqs:ListQueueTags",
+        "secretsmanager:ListSecrets",
+        "cognito-idp:ListUserPools",
+        "cognito-idp:DescribeUserPool",
+        "apigateway:GET",
+        "tag:GetResources"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

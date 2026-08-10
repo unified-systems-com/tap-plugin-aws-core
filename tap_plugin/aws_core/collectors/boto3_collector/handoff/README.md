@@ -21,6 +21,23 @@ data-plane object reads).
 A fourth artifact — `collector-principal-policy.json` — is the *operator*-side
 policy (yours, not the partner's): it goes on your collector IAM user.
 
+A fifth artifact — `trial-provisioner-policy.json` — is the least-privilege
+policy for the **trial-run provisioner** (see
+`tap_plugin/aws_core/tests/test_trial_run_live.py` and the `add-aws-type`
+skill): a *developer-side* identity that creates, tags, and deletes the
+sacrificial `tap-trial-*` resources a live trial run needs. It is deliberately
+NOT the collector principal — the collector envelope
+(`aws_core/boto_collector`) is SecurityAudit read-only and must never gain
+write actions. The policy fences writes two ways: creates require the request
+to tag `tap:trial=sacrificial` (`aws:RequestTag`), and deletes only reach
+resources already bearing that tag (`aws:ResourceTag`). Caveats: services that
+reject tag-condition keys on a given call would need that condition relaxed
+per-service (verify on first live use), and API Gateway v2 grants are
+expressed as `apigateway:POST/GET/DELETE` (its IAM model is verb-on-path, not
+per-resource actions). If the trial run ever moves onto a tap-secrets envelope
+(scope `aws_core`, key `trial_provisioner`, kind `aws_static_access_key`),
+that wiring goes through the /manage-secret review first.
+
 ---
 
 ## Before you send anything (TAP operator, one-time setup)
