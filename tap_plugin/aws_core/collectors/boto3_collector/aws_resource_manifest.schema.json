@@ -85,6 +85,17 @@
         {
           "type": "object",
           "additionalProperties": false,
+          "required": ["source", "from", "shape"],
+          "properties": {
+            "source": { "const": "field" },
+            "from": { "type": "string", "minLength": 1 },
+            "shape": { "type": "string", "enum": ["list_kv", "map"] },
+            "why": { "type": "string", "minLength": 1 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
           "required": ["source", "resource_type_filter"],
           "properties": {
             "source": { "const": "rgta" },

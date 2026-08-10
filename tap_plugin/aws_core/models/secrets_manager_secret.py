@@ -27,6 +27,7 @@ class SecretsManagerSecret(BaseModel):
         "name": {"type": "string", "minLength": 1},
         "secret_arn": {"type": "string"},
         "rotation_enabled": {"type": "boolean"},
+        "tags": {"type": "object"},
         "configuration": {"type": "object"},
     }
 
@@ -34,6 +35,7 @@ class SecretsManagerSecret(BaseModel):
         "name": {"validation": "jsonschema", "schema": {"type": "string", "minLength": 1}},
         "secret_arn": {"validation": "jsonschema", "schema": {"type": "string"}},
         "rotation_enabled": {"validation": "jsonschema", "schema": {"type": "boolean"}},
+        "tags": {"validation": "jsonschema", "schema": {"type": "object"}},
         "configuration": {"validation": "jsonschema", "schema": {"type": "object"}},
     }
     CREATE_REQUIRED: ClassVar[list[str]] = ["name"]
@@ -41,6 +43,7 @@ class SecretsManagerSecret(BaseModel):
     name = models.CharField(max_length=255, blank=True, default="")
     secret_arn = models.CharField(max_length=512, blank=True, default="")
     rotation_enabled = models.BooleanField(default=False)
+    tags = models.JSONField(default=dict, blank=True)
     configuration = models.JSONField(default=dict, blank=True)
 
     class Meta(BaseModel.Meta):

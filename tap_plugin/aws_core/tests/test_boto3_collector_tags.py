@@ -78,8 +78,25 @@ class TestManifestTagsBlock:
             "aws_core__aws_route53_zone",
             "aws_core__aws_iam_oidc_provider",
         }
+        # The field lane (v0.4.1): the enumeration itself carried the tags —
+        # inline response fields or custom-fn-hydrated `_` slots. Zero extra
+        # API calls; the v0.4.0 five had these projected via `fields` and
+        # clobbered to {} by the envelope.
+        field = {
+            "aws_core__aws_apigateway_http_api",
+            "aws_core__aws_cognito_user_pool",
+            "aws_core__aws_kms_key",
+            "aws_core__aws_sqs_queue",
+            "aws_core__aws_cloudtrail_trail",
+            "aws_core__aws_secrets_manager_secret",
+        }
         for t in rgta:
             assert tags_block(by_type[t])["source"] == "rgta"
+        for t in field:
+            blk = tags_block(by_type[t])
+            assert blk["source"] == "field"
+            assert blk["shape"] in ("list_kv", "map")
+            assert blk["from"]
         for t in service:
             blk = tags_block(by_type[t])
             assert blk["source"] == "service"
@@ -98,6 +115,8 @@ class TestManifestTagsBlock:
             {"source": "rgta"},
             {"source": "service", "op": "X"},
             {"source": "elsewhere"},
+            {"source": "field"},
+            {"source": "field", "from": "Tags", "shape": "nested"},
         ):
             bad = {
                 "manifest_version": "0",
@@ -117,3 +136,29 @@ class TestManifestTagsBlock:
             }
             with pytest.raises(jsonschema.ValidationError):
                 jsonschema.validate(bad, schema)
+
+
+class TestResolveNodeTagsFieldLane:
+    """The field lane resolves tags straight off the enumerated item — no client, no map."""
+
+    def _resolve(self, block, item):
+        from tap_plugin.aws_core.collectors.boto3_collector.collector import resolve_node_tags
+
+        entry = {"entity_type": "x", "service": "s", "tags": block}
+        return resolve_node_tags(entry, item, rgta_map={}, client_for=None)
+
+    def test_map_shape_off_item(self):
+        block = {"source": "field", "from": "_tags", "shape": "map"}
+        tags, slot, mapping = self._resolve(block, {"_tags": {"Owner": "sam"}})
+        assert tags == {"Owner": "sam"}
+        assert slot is None and mapping is None
+
+    def test_list_kv_shape_off_item(self):
+        block = {"source": "field", "from": "Tags", "shape": "list_kv"}
+        tags, _, _ = self._resolve(block, {"Tags": [{"Key": "Env", "Value": "prod"}]})
+        assert tags == {"Env": "prod"}
+
+    def test_missing_field_is_untagged_not_error(self):
+        block = {"source": "field", "from": "Tags", "shape": "list_kv"}
+        tags, _, _ = self._resolve(block, {"Name": "no-tags-here"})
+        assert tags == {}
