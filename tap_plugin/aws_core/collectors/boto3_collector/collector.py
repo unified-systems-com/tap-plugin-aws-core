@@ -114,17 +114,28 @@ def resolve_node_tags(
     - ``rgta`` source — join by ARN against the per-run RGTA map;
       ``{}`` if untagged (correct, not a gap). No raw slot (RGTA's
       ``list_kv``↔``map`` is information-preserving).
+    - ``field`` source — the enumeration itself already carried the tags
+      (an inline response field, or a ``_``-prefixed slot a custom fn
+      hydrated); normalize straight off the item. The cheapest lane: zero
+      extra API calls. No raw slot (normalization is shape-preserving).
     - ``service`` side-quest — the tag op run through the hydrate template
       (so ``ok|absent|denied|error`` status + raw land in ``_hydrate``,
       and a ``denied``/``error`` is surfaced as ``HYDRATE_GAP`` by the
       existing run scan); the slot's data is normalized to ``{str:str}``.
     - no ``tags`` block — ``({}, None, None)``.
+
+    Tags reach the node envelope ONLY through this resolver — a manifest
+    entry must never project tags via its ``fields`` map (the envelope
+    stamps the resolved map after the projected fields, so a projected
+    ``tags`` field is silently clobbered; the v0.4.0 scar).
     """
     block = entry.get("tags")
     if not block:
         return {}, None, None
     if block["source"] == "rgta":
         return rgta_map.get(rgta_join_arn(entry, item) or "", {}), None, None
+    if block["source"] == "field":
+        return normalize_tags(eval_path(item, block["from"]), block["shape"]), None, None
 
     call_kwargs: dict[str, Any] = {}
     for param_name, spec in block["params"].items():

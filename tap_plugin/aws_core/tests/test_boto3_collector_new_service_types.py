@@ -13,7 +13,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from botocore.exceptions import ClientError
-
 from tap_plugin.aws_core.collectors.boto3_collector.customfns import (
     _lambda_arn_from_integration_uri,
     apigateway_http_apis_detailed,

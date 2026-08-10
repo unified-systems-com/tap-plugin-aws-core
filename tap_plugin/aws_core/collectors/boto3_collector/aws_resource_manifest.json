@@ -377,8 +377,13 @@
         "api_id": "ApiId",
         "api_arn": "_api_arn",
         "api_endpoint": "ApiEndpoint",
-        "protocol_type": "ProtocolType",
-        "tags": "Tags"
+        "protocol_type": "ProtocolType"
+      },
+      "tags": {
+        "source": "field",
+        "from": "Tags",
+        "shape": "map",
+        "why": "Resource tags — ownership / environment / cost / compliance scoping. Inline on the GetApis item; the field lane costs no extra call."
       },
       "edges": [
         {
@@ -410,8 +415,13 @@
         "pool_id": "Id",
         "pool_arn": "Arn",
         "domain": "Domain",
-        "mfa_configuration": "MfaConfiguration",
-        "tags": "UserPoolTags"
+        "mfa_configuration": "MfaConfiguration"
+      },
+      "tags": {
+        "source": "field",
+        "from": "UserPoolTags",
+        "shape": "map",
+        "why": "Resource tags — ownership / environment / cost / compliance scoping. Inline on the described pool; the field lane costs no extra call."
       },
       "edges": []
     },
@@ -429,8 +439,13 @@
         "key_id": "KeyId",
         "key_state": "KeyState",
         "key_manager": "KeyManager",
-        "description": "Description",
-        "tags": "_tags"
+        "description": "Description"
+      },
+      "tags": {
+        "source": "field",
+        "from": "_tags",
+        "shape": "map",
+        "why": "Resource tags — ownership / environment / cost / compliance scoping. The custom fn hydrates ListResourceTags into _tags; the field lane reads it without a second fetch."
       },
       "edges": []
     },
@@ -447,8 +462,13 @@
         "queue_arn": "QueueArn",
         "queue_url": "QueueUrl",
         "visibility_timeout": "VisibilityTimeout",
-        "message_retention_period": "MessageRetentionPeriod",
-        "tags": "_tags"
+        "message_retention_period": "MessageRetentionPeriod"
+      },
+      "tags": {
+        "source": "field",
+        "from": "_tags",
+        "shape": "map",
+        "why": "Resource tags — ownership / environment / cost / compliance scoping. The custom fn hydrates ListQueueTags into _tags; the field lane reads it without a second fetch."
       },
       "edges": [
         {
@@ -475,8 +495,13 @@
         "s3_bucket_name": "S3BucketName",
         "is_multi_region": "IsMultiRegionTrail",
         "log_file_validation_enabled": "LogFileValidationEnabled",
-        "is_logging": "_is_logging",
-        "tags": "_tags"
+        "is_logging": "_is_logging"
+      },
+      "tags": {
+        "source": "field",
+        "from": "_tags",
+        "shape": "map",
+        "why": "Resource tags — ownership / environment / cost / compliance scoping. The custom fn folds ListTags TagsList into _tags; the field lane reads it without a second fetch."
       },
       "edges": [
         {
@@ -517,6 +542,12 @@
         "name": "Name",
         "secret_arn": "ARN",
         "rotation_enabled": "RotationEnabled"
+      },
+      "tags": {
+        "source": "field",
+        "from": "Tags",
+        "shape": "list_kv",
+        "why": "Resource tags — ownership / environment / cost / compliance scoping. Inline on the ListSecrets item (Key/Value list); the field lane costs no extra call."
       },
       "edges": [
         {
