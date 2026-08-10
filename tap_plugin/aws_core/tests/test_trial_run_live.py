@@ -524,7 +524,15 @@ def sweep_trial_resources(
                 deleter(session, region, arn)
                 report["deleted"].append(arn)
             except Exception as exc:  # noqa: BLE001 — a sweep reports per-resource failures, never dies mid-list
-                report["errors"].append(f"{arn}: {exc}")
+                # RGTA's tag index lags DELETION too: a resource the trial's own
+                # teardown already removed can still be listed for minutes, and
+                # re-deleting it raises the service's not-found error. Already
+                # gone IS the sweep's goal state — count it deleted, not failed.
+                code = getattr(exc, "response", {}).get("Error", {}).get("Code", "")
+                if "NotFound" in code or "NoSuch" in code or "does not exist" in str(exc):
+                    report["deleted"].append(arn)
+                else:
+                    report["errors"].append(f"{arn}: {exc}")
     return report
 
 
