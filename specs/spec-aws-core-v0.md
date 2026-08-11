@@ -207,6 +207,22 @@ Several edge types declare `property_schema` for structured edge metadata (e.g. 
 
 #### Open Questions
 
+**Compliance-boundary membership needs a real design (revisit — 2026-08-10).** Today
+every `aws_account` node is auto-enrolled in the compliance boundary: samsite's
+compliance collector synthesizes `SCOPED_TO_COMPLIANCE_BOUNDARY__compliance_core`
+edges from the presence of `aws_account` nodes, carrying
+`properties.kludge = "all-aws-accounts-auto-in-boundary-v0"` — a self-confessed
+placeholder rule. That field is being schema'd **as-is** (per the mandatory
+edge-property-schema work in core's `spec-grid-edge.md`,
+`req-grid-edge-schema-required`) so the v0 behavior is at least typed and honest.
+The open design questions before renaming it to a real `membership_rule`:
+which accounts belong to which boundary (all-in is only right for single-account
+deployments); who declares membership (operator boot-profile config, account
+tags/OU structure pulled by the collector, or explicit grid authoring); and where
+the rule lives (aws_core owns account semantics, compliance_core owns the boundary
+vocabulary, consumers like samsite currently hard-code the synthesis). Resolve the
+design first; the field rename rides it.
+
 **Generic vs. specific edge types (resolved toward specific).** The vocabulary
 formerly carried broad generic edges (`ATTACHED_TO`, `DEPENDS_ON`, `CONTAINS`,
 `RESIDES_IN`, `PROTECTS`) meant to be reusable across resource types. In practice none
