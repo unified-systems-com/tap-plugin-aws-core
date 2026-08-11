@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "profile_kind": "dev_local",
+  "description": "aws_core CI/nightly boot-and-test profile (req-plugin-extdev-repo-ci; consumed by tap's plugin-ci.yml boot-and-test job and the nightly-plugins depth leg keyed on this file's existence). aws_core is fully self-contained — all 10 edge types reference only aws_core__ node types, the manifest declares no cross-plugin dependencies, and the sole Python dependency is boto3 — so this record installs aws_core ALONE, editable from _external/aws_core (the path plugin-ci.yml checks this repo out to inside the harness tree), so CI tests THIS repo's HEAD, not a released tag. Population is seed-only: it seeds the aws_core GRIFT (the aws dimension + region/AZ reference data) and boots to healthy. Collectors are NEVER fired — CI runs with an empty secrets root, and the boto3 collector plus the sacrificial-resource trial harness (tap_plugin/aws_core/tests/test_trial_run_live.py) are both gated off unless explicitly enabled (TAP_AWS_TRIAL_RUN=1), so there are no fire-collector steps and correspondingly no required_secrets (coherence rule: entries must be consumed by an enabled step).",
+  "install": {
+    "plugins": [
+      {
+        "slug": "aws_core",
+        "enabled": true,
+        "source": {
+          "type": "editable",
+          "path": "_external/aws_core"
+        },
+        "note": "Package-mode (tap_plugin.aws_core), installed EDITABLE from the CI checkout at _external/aws_core so the suite runs against this repo's HEAD. Tier-0 boto3 dep resolved at install. Self-contained: no sibling plugins are required to install, boot, or run its in-package tests."
+      }
+    ]
+  },
+  "population": {
+    "on_failure": "abort",
+    "steps": [
+      {
+        "type": "seed-plugin",
+        "plugin": "aws_core",
+        "enabled": true,
+        "note": "AWS dimension + region/AZ reference data (grift/dimension.grift.json + grift/regions.grift.json). Seed-only; the boto3 collector is not fired in CI."
+      }
+    ]
+  }
+}
