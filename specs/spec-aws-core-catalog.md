@@ -35,6 +35,7 @@ This approach was chosen over a deterministic scraper because AWS does not prese
 ### Catalog Scope
 ----
 RID: `req-aws-catalog-scope`
+
 Status: `Implemented`
 
 The catalog refresh currently covers AWS regions, availability zones, and entity type icons.
@@ -72,6 +73,7 @@ Expand scope to include service/resource type discovery — detecting new AWS se
 ### Refresh Skill
 ----
 RID: `req-aws-catalog-skill`
+
 Status: `Implemented`
 
 The catalog refresh is a Claude Code skill that directly modifies plugin source files.
@@ -109,6 +111,7 @@ The skill should grow to handle model file generation when the service catalog e
 ### Incremental Updates
 ----
 RID: `req-aws-catalog-incremental`
+
 Status: `Implemented`
 
 The refresh skill detects changes since the last run rather than regenerating everything.
@@ -143,6 +146,7 @@ Entity ID ranges are partitioned by type:
 ### Deprecation Policy
 ----
 RID: `req-aws-catalog-deprecation`
+
 Status: `Implemented`
 
 The refresh skill never removes data without authoritative evidence.
@@ -169,6 +173,7 @@ This policy exists because false removals are far more damaging than stale entri
 ### Post-Refresh Validation
 ----
 RID: `req-aws-catalog-validation`
+
 Status: `Implemented`
 
 Every refresh run is validated before completion.
@@ -193,6 +198,7 @@ Both must pass before the skill reports success. If either fails, the skill diag
 ### Icon Management
 ----
 RID: `req-aws-catalog-icons`
+
 Status: `Implemented`
 
 Icon creation and maintenance is part of the catalog refresh.
@@ -229,6 +235,7 @@ Source icons from the official AWS Architecture Icons asset pack, simplified to 
 ### Service Catalog Expansion
 ----
 RID: `req-aws-catalog-future-services`
+
 Status: `Proposed`
 
 Future capability: the refresh skill detects new AWS services and proposes new models, edge types, and GRIFT data.
@@ -253,6 +260,7 @@ This capability depends on the skill being able to reliably gather AWS service m
 ### Live Account Discovery
 ----
 RID: `req-aws-catalog-future-live`
+
 Status: `Proposed`
 
 Future capability: populate the grid from a running AWS account.
@@ -276,6 +284,7 @@ This capability will likely use tools like AWS Config, CloudTrail, or direct API
 ### CI Integration
 ----
 RID: `req-aws-catalog-future-ci`
+
 Status: `Proposed`
 
 Future capability: automated nightly refresh via CI.

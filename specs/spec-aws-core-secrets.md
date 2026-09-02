@@ -28,6 +28,7 @@ concrete instance of the consumer-owned-shape contract.
 ## AWS Static Access Key Kind
 ----
 RID: `req-aws-core-secret-aws-static`
+
 Status: `Approved for Development`
 
 The first AWS collector credential mode is static AWS access keys. The
@@ -92,6 +93,7 @@ example.
 ## AWS Assumed-Role Kind (cross-account)
 ----
 RID: `req-aws-core-secret-aws-assumed-role`
+
 Status: `Proposed`
 
 The second AWS collector credential mode is **cross-account role assumption**.
