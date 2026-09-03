@@ -35,6 +35,7 @@ v0 is intentionally scoped to the "meat and potatoes" AWS resources common to mo
 ### Plugin Scope
 ----
 RID: `req-aws-core-scope`
+
 Status: `Implemented`
 
 The AWS Core plugin models the resource types needed to represent a running AWS cloud environment.
@@ -70,6 +71,7 @@ Expand to include additional services as they prove necessary for security, comp
 ### Resource-Type Models
 ----
 RID: `req-aws-core-models`
+
 Status: `Implemented`
 
 The plugin declares TAP-managed resource-type models organized by category. The
@@ -121,6 +123,7 @@ New models should be added through the catalog refresh skill when new AWS resour
 ### Field Design
 ----
 RID: `req-aws-core-fields`
+
 Status: `Implemented`
 
 Each model uses a hybrid approach: key typed fields for queryable data, plus a `configuration` JSONField for the full metadata payload.
@@ -154,6 +157,7 @@ Consider adding `"default"` values to `FIELD_CRUD_SCHEMA` entries to support a "
 ### Edge Types
 ----
 RID: `req-aws-core-edges`
+
 Status: `Implemented`
 
 The plugin declares a semantic edge vocabulary organized by relationship
@@ -240,6 +244,7 @@ CloudWatch logging (`WRITES_LOGS`) and the CloudFront retrieval edges landed wit
 ### Reference Data
 ----
 RID: `req-aws-core-reference`
+
 Status: `Implemented`
 
 Regions and availability zones are seeded as GRIFT data with `DIVIDED_INTO_AZ` edges
@@ -279,6 +284,7 @@ Add Local Zones and Wavelength Zones when they become relevant for the complianc
 ### Icon Assets
 ----
 RID: `req-aws-core-icons`
+
 Status: `Implemented`
 
 Every model type has a corresponding SVG icon per the TAP grid icon specification.
@@ -308,6 +314,7 @@ Replace placeholder icons with proper AWS Architecture Icons simplified to TAP's
 ### Computing Core Alignment
 ----
 RID: `req-aws-core-computing-core`
+
 Status: `Proposed`
 
 Future alignment between AWS-native resource types and generic computing primitives is the responsibility of `aws_core`, not `computing_core`.
@@ -340,6 +347,7 @@ Should `aws_elastic_ip.public_ip` eventually participate in a hotlink contract t
 ### Plugin Validation
 ----
 RID: `req-aws-core-validation`
+
 Status: `Implemented`
 
 The plugin passes TAP's centralized plugin validation system at all three levels.
@@ -363,6 +371,7 @@ Plugin-specific tests cover only domain behavior (field defaults, configuration 
 ### v0 Non-Goals
 ----
 RID: `req-aws-core-nongoals`
+
 Status: `Proposed`
 
 The following are explicitly deferred from v0:

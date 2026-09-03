@@ -33,6 +33,7 @@ This minimal projection is intentionally narrow. It exists to prove a workable p
 ### Projection Scope
 ----
 RID: `req-aws-projection-top-level-minimal-scope`
+
 Status: `Proposed`
 
 The minimal AWS top-level projection shows a single AWS account containing VPCs, subnets, EC2 instances, and RDS instances.
@@ -77,6 +78,7 @@ Later AWS projections may add account-space resources, VPC-adjacent resources, p
 ### Input Graph Slice
 ----
 RID: `req-aws-projection-top-level-minimal-input-slice`
+
 Status: `Proposed`
 
 The minimal projection gathers a fixed, explicit slice of the graph rather than trying to infer its working set from the whole AWS environment.
@@ -130,6 +132,7 @@ Later projections may extend the slice to include ALBs, target groups, account-s
 ### Minimal Scene Contract
 ----
 RID: `req-aws-projection-top-level-minimal-scene`
+
 Status: `Proposed`
 
 The minimal scene renders containment and placement only.
@@ -176,6 +179,7 @@ Later top-level AWS views may add perimeter zones, adjacency bands, or selected 
 ### Approximate Placement Model
 ----
 RID: `req-aws-projection-top-level-minimal-placement`
+
 Status: `Proposed`
 
 The minimal projection uses an approximate placement model whose purpose is to get the scene started, not finished.
@@ -233,6 +237,7 @@ Later projections may add stronger placement semantics, deterministic tiering, a
 ### Genericom Worked Example
 ----
 RID: `req-aws-projection-top-level-minimal-genericom`
+
 Status: `Proposed`
 
 Genericom is the first concrete proving ground for the minimal AWS top-level projection.
@@ -290,6 +295,7 @@ Later Genericom examples may exercise richer AWS top-level projections with ALBs
 ### Future Skill Direction
 ----
 RID: `req-aws-projection-top-level-minimal-skill`
+
 Status: `Proposed`
 
 A future skill should gather the minimal AWS slice and produce an initial placement plan from it.
@@ -329,6 +335,7 @@ Later skills may add semantic interpretation, richer AWS coverage, or LLM-assist
 ### Minimal Non-Goals
 ----
 RID: `req-aws-projection-top-level-minimal-nongoals`
+
 Status: `Proposed`
 
 Several AWS visualization concerns are intentionally deferred from the minimal projection.

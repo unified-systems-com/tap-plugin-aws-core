@@ -107,6 +107,7 @@ no encrypted secrets) are inherited as v0 fences.
 ### Collector Scope
 ----
 RID: `req-aws-collector-scope`
+
 Status: `Approved for Development`
 
 v0 collects a single AWS account into the grid, scoped to the resource types
@@ -141,6 +142,7 @@ GovCloud/China partitions.
 ### Resource Manifest
 ----
 RID: `req-aws-collector-manifest`
+
 Status: `Approved for Development`
 
 A single JSON manifest, versioned and shipped in the plugin, declares every
@@ -186,6 +188,7 @@ where sync order encodes the dependency graph.
 ### Source Primitive
 ----
 RID: `req-aws-collector-source`
+
 Status: `Approved for Development`
 
 A manifest entry's `source` is a single primitive with two implementations. Both
@@ -232,6 +235,7 @@ Seam](#fan-out-hydrate-seam) rather than hand-rolling pagination/error handling.
 ### Field Projection
 ----
 RID: `req-aws-collector-field-projection`
+
 Status: `Approved for Development`
 
 Each raw item is projected into a typed `aws_core` node plus a full
@@ -328,6 +332,7 @@ Two engine rules keep the blob stable across runs:
 ### Deterministic Identity
 ----
 RID: `req-aws-collector-identity`
+
 Status: `Approved for Development`
 
 Every collected node and edge has a deterministic `entity_id` so that repeated
@@ -368,6 +373,7 @@ GRIFT's dangling-edge handling governs the not-yet-present case.
 ### Declarative Edge Rules
 ----
 RID: `req-aws-collector-edges`
+
 Status: `Approved for Development`
 
 Relationships are materialized from declarative edge rules in the manifest entry,
@@ -466,6 +472,7 @@ identity.
 ### Edge Identifier Resolution (Future Seam)
 ----
 RID: `req-aws-collector-edge-resolver`
+
 Status: `Backlog`
 
 The durable fix for the fragility `req-aws-collector-edges-7` papers over by
@@ -542,6 +549,7 @@ the grid-state reconciliation seam (`req-aws-collector-reconcile`) under
 ### Fan-Out Hydrate Seam
 ----
 RID: `req-aws-collector-hydrate`
+
 Status: `Approved for Development`
 
 The first of the two named seams. A reusable, manifest-parameterised template
@@ -613,6 +621,7 @@ sub-configuration is deferred.
 ### S3 Bucket Size Metrics
 ----
 RID: `req-aws-collector-s3-bucket-size`
+
 Status: `Approved for Development`
 
 Every `aws_s3_bucket` node carries `size_bytes` and `object_count` so the
@@ -682,6 +691,7 @@ misleading "0 bytes".
 ### Credential Resolution
 ----
 RID: `req-aws-collector-credentials`
+
 Status: `Approved for Development`
 
 AWS credentials are resolved through the `tap_cares` secrets subsystem. The
@@ -736,6 +746,7 @@ collector never reads credential files directly.
 ### Collector Runtime Integration
 ----
 RID: `req-aws-collector-runtime`
+
 Status: `Approved for Development`
 
 The collector is an ordinary `CollectorBase` implementation registered with
@@ -790,6 +801,7 @@ replicated. This trust-tier distinction is carried forward as a build-skill axis
 ### Region Iteration And Resilience
 ----
 RID: `req-aws-collector-regions`
+
 Status: `Approved for Development`
 
 The engine iterates regions for regional services and degrades gracefully on the
@@ -828,6 +840,7 @@ resilience shape, implemented as TAP code against `record_warn`.
 ### GRIFT Batch Assembly
 ----
 RID: `req-aws-collector-grift-batch`
+
 Status: `Approved for Development`
 
 One collection run assembles one GRIFT batch carrying all collected nodes and
@@ -861,6 +874,7 @@ edges, submitted through the approved import surface.
 ### Audit Verifiability
 ----
 RID: `req-aws-collector-audit-ledger`
+
 Status: `Approved for Development`
 
 **Theme (future).** A later theme makes a collection run *verifiable* — able
@@ -929,6 +943,7 @@ ledger as run provenance on the persisted, history-tracked `CollectionJob`
 ### Resource Tags
 ----
 RID: `req-aws-collector-tags`
+
 Status: `Approved for Development`
 
 Every collected node carries a single canonical `tags` field — a flat
@@ -1041,6 +1056,7 @@ not).
 ### Model Dependencies
 ----
 RID: `req-aws-collector-model-deps`
+
 Status: `Proposed`
 
 The collector can only populate models that exist. Three of Sam's eight resource
@@ -1073,6 +1089,7 @@ edge process, not invented here.
 ### Sam Worked Example
 ----
 RID: `req-aws-collector-sam-example`
+
 Status: `Proposed`
 
 A concrete v0 manifest and edge set for the reproduced samaydlette.com stack, so
@@ -1126,6 +1143,7 @@ Sam's edges require policy-document parsing):
 ### Build-Collector Skill Direction
 ----
 RID: `req-aws-collector-build-skill`
+
 Status: `Proposed`
 
 The manifest-driven design is the foundation of a future build-collector skill.
@@ -1164,6 +1182,7 @@ Sam target and the manifest format has stabilized through real use.
 ### Shape-Drift Detection
 ----
 RID: `req-aws-collector-drift`
+
 Status: `Proposed`
 
 AWS API shape changes are detected deterministically by diffing the pinned
@@ -1193,6 +1212,7 @@ than as new infrastructure.
 ### v0 Non-Goals
 ----
 RID: `req-aws-collector-nongoals`
+
 Status: `Proposed`
 
 Explicitly deferred. Each is a bounded future seam, not an abandoned idea — named
