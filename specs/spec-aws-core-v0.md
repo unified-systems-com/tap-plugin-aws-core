@@ -174,7 +174,7 @@ Edge slugs follow the consolidated naming convention canonical in
 `<ACTION>_<OBJECT>`; the edge points in the direction of action initiation;
 `_TO` is never used (forward is unmarked); `_FROM` is reserved for a
 data-backwards edge (data flows opposite the action/edge direction); and
-locative/relational prepositions (e.g. `FEDERATES_INTO`) keep their inherent
+locative/relational prepositions (e.g. `FEDERATES_INTO_ROLE`) keep their inherent
 preposition. Lineage: `e5229d4` renamed terse predicates to explicit
 `<ACTION>_<OBJECT>` forms; the subsequent refinement dropped redundant `_TO` and
 reserved `_FROM` for data-reversal.
@@ -193,12 +193,12 @@ The categories (representative; the manifest is the canonical, enforced list):
 | Category | Edge Types | Description |
 | --- | --- | --- |
 | Structural | DIVIDED_INTO_AZ | Region → availability zone reference topology (parent→child) |
-| Operational | INVOKES, ROUTES_TRAFFIC, WRITES_LOGS, RETRIEVES_CONTENT_FROM, RETRIEVES_CERT_FROM | Runtime actions, traffic, and data retrieval (`_FROM` = data-backwards) |
-| Access/Security | ASSUMES_ROLE, FEDERATES_INTO | IAM role assumption and federated identity |
+| Operational | INVOKES_LAMBDA, ROUTES_TRAFFIC, WRITES_LOGS, RETRIEVES_CONTENT_FROM, RETRIEVES_CERT_FROM | Runtime actions, traffic, and data retrieval (`_FROM` = data-backwards) |
+| Access/Security | ASSUMES_ROLE, FEDERATES_INTO_ROLE | IAM role assumption and federated identity |
 
-Edge types use explicit `sources` and `targets` constraints where the relationship is well-defined (e.g. `ASSUMES_ROLE` from IAM users/roles, Lambda functions, and EventBridge rules to IAM roles; `RETRIEVES_CONTENT_FROM` from CloudFront distributions to S3 buckets). Where one end is genuinely open, only the other is constrained (e.g. `INVOKES` fixes its target to `aws_lambda` and leaves the source open).
+Edge types use explicit `sources` and `targets` constraints where the relationship is well-defined (e.g. `ASSUMES_ROLE` from IAM users/roles, Lambda functions, and EventBridge rules to IAM roles; `RETRIEVES_CONTENT_FROM` from CloudFront distributions to S3 buckets). Where one end is genuinely open, only the other is constrained (e.g. `INVOKES_LAMBDA` fixes its target to `aws_lambda` and leaves the source open).
 
-Several edge types declare `property_schema` for structured edge metadata (e.g. `ROUTES_TRAFFIC` has optional `destination_cidr` and `port`; `INVOKES` has an optional `method`).
+Several edge types declare `property_schema` for structured edge metadata (e.g. `ROUTES_TRAFFIC` has optional `destination_cidr` and `port`; `INVOKES_LAMBDA` has an optional `method`).
 
 #### Acceptance Criteria
 

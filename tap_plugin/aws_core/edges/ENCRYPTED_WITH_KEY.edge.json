@@ -1,6 +1,6 @@
 {
-  "slug": "ENCRYPTED_WITH__aws_core",
-  "name": "Encrypted With",
+  "slug": "ENCRYPTED_WITH_KEY__aws_core",
+  "name": "Encrypted With Key",
   "description": "A resource's data-at-rest is encrypted with a KMS key (S3 default encryption, log-group encryption, SQS SSE-KMS, CloudTrail log encryption, Secrets Manager secret encryption). Only customer-referenced full key ARNs resolve; alias and bare-key-id references, and AWS-owned keys, emit no edge.",
   "sources": [
     "aws_core__aws_s3_bucket",

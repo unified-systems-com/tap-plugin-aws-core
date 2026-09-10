@@ -1,6 +1,6 @@
 {
-  "slug": "INVOKES__aws_core",
-  "name": "Invokes",
+  "slug": "INVOKES_LAMBDA__aws_core",
+  "name": "Invokes Lambda",
   "description": "A service invokes a Lambda function (e.g. an EventBridge rule targeting a Lambda, or an API Gateway HTTP API's Lambda-proxy integration). Source is open because several service types can invoke a Lambda; the target is the invoked Lambda.",
   "targets": ["aws_core__aws_lambda"],
   "property_schema": {

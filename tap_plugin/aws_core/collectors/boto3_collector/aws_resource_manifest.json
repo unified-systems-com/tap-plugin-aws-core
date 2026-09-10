@@ -81,7 +81,7 @@
           "value_path": "AssumeRolePolicyDocument.Statement[].Principal.Federated",
           "target_type": "aws_core__aws_iam_oidc_provider",
           "key_kind": "arn",
-          "edge_type": "FEDERATES_INTO__aws_core",
+          "edge_type": "FEDERATES_INTO_ROLE__aws_core",
           "direction": "inbound"
         }
       ]
@@ -118,7 +118,7 @@
           "value_path": "_lambda_target_arns",
           "target_type": "aws_core__aws_lambda",
           "key_kind": "arn",
-          "edge_type": "INVOKES__aws_core",
+          "edge_type": "INVOKES_LAMBDA__aws_core",
           "direction": "outbound"
         }
       ]
@@ -147,7 +147,7 @@
           "value_path": "kmsKeyId",
           "target_type": "aws_core__aws_kms_key",
           "key_kind": "arn",
-          "edge_type": "ENCRYPTED_WITH__aws_core",
+          "edge_type": "ENCRYPTED_WITH_KEY__aws_core",
           "direction": "outbound",
           "transform": "kms_key_arn_or_none"
         }
@@ -275,7 +275,7 @@
           "value_path": "_hydrate.encryption.data.ServerSideEncryptionConfiguration.Rules[].ApplyServerSideEncryptionByDefault.KMSMasterKeyID",
           "target_type": "aws_core__aws_kms_key",
           "key_kind": "arn",
-          "edge_type": "ENCRYPTED_WITH__aws_core",
+          "edge_type": "ENCRYPTED_WITH_KEY__aws_core",
           "direction": "outbound",
           "transform": "kms_key_arn_or_none"
         }
@@ -390,14 +390,14 @@
           "value_path": "_integration_lambda_arns",
           "target_type": "aws_core__aws_lambda",
           "key_kind": "arn",
-          "edge_type": "INVOKES__aws_core",
+          "edge_type": "INVOKES_LAMBDA__aws_core",
           "direction": "outbound"
         },
         {
           "value_path": "_authorizer_user_pool_ids",
           "target_type": "aws_core__aws_cognito_user_pool",
           "key_kind": "id",
-          "edge_type": "AUTHENTICATES_VIA__aws_core",
+          "edge_type": "AUTHENTICATES_VIA_USER_POOL__aws_core",
           "direction": "outbound"
         }
       ]
@@ -430,7 +430,7 @@
       "service": "kms",
       "scope": "regional",
       "source": { "custom_fn": "kms_keys_described" },
-      "why": "Enumerate KMS keys (aliases + tags resolved) — the encryption-at-rest anchors that ENCRYPTED_WITH edges from buckets, log groups, queues, trails, and secrets resolve to.",
+      "why": "Enumerate KMS keys (aliases + tags resolved) — the encryption-at-rest anchors that ENCRYPTED_WITH_KEY edges from buckets, log groups, queues, trails, and secrets resolve to.",
       "items_path": "[]",
       "natural_key": "Arn",
       "fields": {
@@ -475,7 +475,7 @@
           "value_path": "KmsMasterKeyId",
           "target_type": "aws_core__aws_kms_key",
           "key_kind": "arn",
-          "edge_type": "ENCRYPTED_WITH__aws_core",
+          "edge_type": "ENCRYPTED_WITH_KEY__aws_core",
           "direction": "outbound",
           "transform": "kms_key_arn_or_none"
         }
@@ -524,7 +524,7 @@
           "value_path": "KmsKeyId",
           "target_type": "aws_core__aws_kms_key",
           "key_kind": "arn",
-          "edge_type": "ENCRYPTED_WITH__aws_core",
+          "edge_type": "ENCRYPTED_WITH_KEY__aws_core",
           "direction": "outbound",
           "transform": "kms_key_arn_or_none"
         }
@@ -554,7 +554,7 @@
           "value_path": "KmsKeyId",
           "target_type": "aws_core__aws_kms_key",
           "key_kind": "arn",
-          "edge_type": "ENCRYPTED_WITH__aws_core",
+          "edge_type": "ENCRYPTED_WITH_KEY__aws_core",
           "direction": "outbound",
           "transform": "kms_key_arn_or_none"
         }
