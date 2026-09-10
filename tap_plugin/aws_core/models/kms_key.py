@@ -15,7 +15,7 @@ class KmsKey(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = (
         "An AWS Key Management Service key — the encryption-at-rest anchor that "
         "buckets, log groups, queues, trails, and secrets resolve to via "
-        "ENCRYPTED_WITH edges."
+        "ENCRYPTED_WITH_KEY edges."
     )
     ENTITY_ICON: ClassVar[str] = "aws-kms"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}

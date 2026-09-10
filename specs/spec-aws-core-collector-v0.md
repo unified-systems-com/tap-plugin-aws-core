@@ -1127,7 +1127,7 @@ Sam's edges require policy-document parsing):
   prior art does not ship — TAP-authored)
 - Lambda → IAM role (`Role` ARN)
 - EventBridge rule → IAM role (`RoleArn`)
-- EventBridge rule → Lambda (`INVOKES`; target ARNs from `ListTargetsByRule`,
+- EventBridge rule → Lambda (`INVOKES_LAMBDA`; target ARNs from `ListTargetsByRule`,
   filtered to Lambda targets) — the daily schedule tick that drives the
   compliance Lambda
 - Lambda → CloudWatch log group (logging configuration / convention)

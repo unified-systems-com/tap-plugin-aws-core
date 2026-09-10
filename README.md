@@ -97,21 +97,21 @@ collector will not populate it.
 | --- | --- | --- |
 | STS | account (synthesized node — no AWS API enumerates "the account") | — |
 | Lambda | functions | ASSUMES_ROLE, WRITES_LOGS |
-| IAM | roles | FEDERATES_INTO |
+| IAM | roles | FEDERATES_INTO_ROLE |
 | IAM | OIDC providers | — |
-| EventBridge | rules (with targets) | ASSUMES_ROLE, INVOKES |
-| CloudWatch Logs | log groups | ENCRYPTED_WITH |
+| EventBridge | rules (with targets) | ASSUMES_ROLE, INVOKES_LAMBDA |
+| CloudWatch Logs | log groups | ENCRYPTED_WITH_KEY |
 | ACM | certificates | — |
 | CloudFront | distributions (with origin access control) | RETRIEVES_CONTENT_FROM, RETRIEVES_CERT_FROM |
-| S3 | buckets (hydrated: per-bucket `GetBucket*` fan-out + size metrics) | ENCRYPTED_WITH |
+| S3 | buckets (hydrated: per-bucket `GetBucket*` fan-out + size metrics) | ENCRYPTED_WITH_KEY |
 | Route 53 | hosted zones (with alias targets) | ROUTES_TRAFFIC |
 | DynamoDB | tables (described) | — |
-| API Gateway v2 | HTTP APIs (stages/routes/integrations/authorizers resolved) | INVOKES, AUTHENTICATES_VIA |
+| API Gateway v2 | HTTP APIs (stages/routes/integrations/authorizers resolved) | INVOKES_LAMBDA, AUTHENTICATES_VIA_USER_POOL |
 | Cognito | user pools (described) | — |
-| KMS | keys (described; aliases + tags joined) | — (the ENCRYPTED_WITH target) |
-| SQS | queues (attributes + tags) | ENCRYPTED_WITH |
-| CloudTrail | trails (home-region only; status + tags) | WRITES_LOGS, ENCRYPTED_WITH |
-| Secrets Manager | secrets (**metadata only** — never `GetSecretValue`) | ENCRYPTED_WITH |
+| KMS | keys (described; aliases + tags joined) | — (the ENCRYPTED_WITH_KEY target) |
+| SQS | queues (attributes + tags) | ENCRYPTED_WITH_KEY |
+| CloudTrail | trails (home-region only; status + tags) | WRITES_LOGS, ENCRYPTED_WITH_KEY |
+| Secrets Manager | secrets (**metadata only** — never `GetSecretValue`) | ENCRYPTED_WITH_KEY |
 
 Tags for these ride the RGTA sweep or per-service tag calls. The original
 eleven are the demo-driven v0 fence (`req-aws-collector-scope-2`); the last

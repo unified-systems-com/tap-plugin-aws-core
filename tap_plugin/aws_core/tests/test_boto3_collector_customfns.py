@@ -457,7 +457,7 @@ class TestEventbridgeRulesWithTargets:
     def test_non_lambda_target_kept_lossless_but_not_edge_bearing(self):
         # An SQS target stays in _target_arns (lossless -> configuration) but
         # is filtered out of _lambda_target_arns so it produces no dangling
-        # INVOKES edge to a non-existent aws_lambda node.
+        # INVOKES_LAMBDA edge to a non-existent aws_lambda node.
         rule = {"Name": "r", "Arn": "arn:aws:events:us-east-2:1:rule/r", "EventBusName": "default"}
         events = _FakeEvents([rule], {"r": [{"Id": "t1", "Arn": _SQS_ARN}]})
         item = next(iter(eventbridge_rules_with_targets(None, client_for=_events_client_for(events))))

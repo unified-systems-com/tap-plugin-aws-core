@@ -54,15 +54,15 @@ aws_core__aws_cloudtrail_trail = "tap_plugin.aws_core.models.cloudtrail_trail.Cl
 
 [edges]
 DIVIDED_INTO_AZ__aws_core = "edges/DIVIDED_INTO_AZ.edge.json"
-INVOKES__aws_core = "edges/INVOKES.edge.json"
+INVOKES_LAMBDA__aws_core = "edges/INVOKES_LAMBDA.edge.json"
 ROUTES_TRAFFIC__aws_core = "edges/ROUTES_TRAFFIC.edge.json"
 ASSUMES_ROLE__aws_core = "edges/ASSUMES_ROLE.edge.json"
 RETRIEVES_CONTENT_FROM__aws_core = "edges/RETRIEVES_CONTENT_FROM.edge.json"
 RETRIEVES_CERT_FROM__aws_core = "edges/RETRIEVES_CERT_FROM.edge.json"
 WRITES_LOGS__aws_core = "edges/WRITES_LOGS.edge.json"
-FEDERATES_INTO__aws_core = "edges/FEDERATES_INTO.edge.json"
-ENCRYPTED_WITH__aws_core = "edges/ENCRYPTED_WITH.edge.json"
-AUTHENTICATES_VIA__aws_core = "edges/AUTHENTICATES_VIA.edge.json"
+FEDERATES_INTO_ROLE__aws_core = "edges/FEDERATES_INTO_ROLE.edge.json"
+ENCRYPTED_WITH_KEY__aws_core = "edges/ENCRYPTED_WITH_KEY.edge.json"
+AUTHENTICATES_VIA_USER_POOL__aws_core = "edges/AUTHENTICATES_VIA_USER_POOL.edge.json"
 
 [grift]
 dimension = "grift/dimension.grift.json"

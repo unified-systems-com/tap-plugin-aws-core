@@ -379,7 +379,7 @@ def eventbridge_rules_with_targets(session: Any, *, client_for: Any) -> Iterator
     Two keys are attached:
 
     - ``_target_arns`` — every target ARN, lossless (→ ``configuration``).
-    - ``_lambda_target_arns`` — the Lambda-only subset, which the ``INVOKES``
+    - ``_lambda_target_arns`` — the Lambda-only subset, which the ``INVOKES_LAMBDA``
       edge rule resolves against. EventBridge targets are polymorphic (SQS,
       SNS, Step Functions, ECS, …) and the v0 edge rule resolves a single
       ``target_type``; filtering to Lambda ARNs here keeps non-Lambda
@@ -484,9 +484,9 @@ def apigateway_http_apis_detailed(session: Any, *, client_for: Any) -> Iterator[
     then derives the two edge-resolvable keys:
 
     - ``_integration_lambda_arns`` — unqualified Lambda ARNs parsed from
-      Lambda-proxy IntegrationUris (the ``INVOKES`` edge).
+      Lambda-proxy IntegrationUris (the ``INVOKES_LAMBDA`` edge).
     - ``_authorizer_user_pool_ids`` — Cognito pool ids parsed from JWT
-      authorizer issuers (the ``AUTHENTICATES_VIA`` edge).
+      authorizer issuers (the ``AUTHENTICATES_VIA_USER_POOL`` edge).
 
     ``GetApis`` carries no ARN; ``_api_arn`` is synthesized in the documented
     ``arn:aws:apigateway:<region>::/apis/<id>`` form as the natural key.
