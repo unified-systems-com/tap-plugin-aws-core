@@ -40,7 +40,9 @@ class Subnet(BaseModel):
         "public": {"validation": "jsonschema", "schema": {"type": "boolean"}},
         "configuration": {"validation": "jsonschema", "schema": {"type": "object"}},
     }
-    CREATE_REQUIRED: ClassVar[list[str]] = ["subnet_id"]
+    # subnet_id is NOT required at create: a designed subnet (dcom=design) exists before AWS mints it.
+    # Blank (the field default) means not observed. A collected subnet always carries it.
+    CREATE_REQUIRED: ClassVar[list[str]] = []
 
     name = models.CharField(max_length=255, blank=True, default="")
     subnet_id = models.CharField(max_length=64, blank=True, default="", db_index=True)

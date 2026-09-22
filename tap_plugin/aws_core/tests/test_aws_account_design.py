@@ -26,3 +26,14 @@ class TestDesignedAccount:
 
     def test_name_still_required(self) -> None:
         assert not _create({"account_id": "123456789012"}).success
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("type_slug", ["aws_core__aws_vpc", "aws_core__aws_subnet"])
+def test_designed_network_without_id_is_accepted(type_slug: str) -> None:
+    """A designed VPC or subnet exists before AWS mints its id."""
+    result = write_batch(
+        [WriteOperation(verb="create_node", type_slug=type_slug, payload={"name": "staging · cicd"})],
+        caller_context=CallerContext(),
+    ).results[0]
+    assert result.success
