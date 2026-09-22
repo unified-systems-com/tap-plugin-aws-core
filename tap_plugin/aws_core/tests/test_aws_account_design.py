@@ -37,3 +37,18 @@ def test_designed_network_without_id_is_accepted(type_slug: str) -> None:
         caller_context=CallerContext(),
     ).results[0]
     assert result.success
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("type_slug", ["aws_core__aws_account", "aws_core__aws_vpc", "aws_core__aws_subnet"])
+def test_two_id_less_creates_stay_distinct(type_slug: str) -> None:
+    """Blank ids never converge: none of these types declares a NATURAL_KEY, so no lookup keys on the id."""
+    results = write_batch(
+        [
+            WriteOperation(verb="create_node", type_slug=type_slug, payload={"name": "a"}),
+            WriteOperation(verb="create_node", type_slug=type_slug, payload={"name": "b"}),
+        ],
+        caller_context=CallerContext(),
+    ).results
+    assert all(r.success for r in results)
+    assert results[0].entity_id != results[1].entity_id
