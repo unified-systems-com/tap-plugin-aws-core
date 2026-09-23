@@ -29,7 +29,49 @@ Add the entry: `entity_type` (`aws_core__aws_<type>`), `service` (boto3 service
 name), `scope` (`regional` | `global`), `source`, `why` (one honest sentence —
 what relationship or risk does collecting this illuminate?), `items_path`,
 `natural_key` (an ARN or the service's canonical id — deterministic identity
-depends on it), `fields` (model field → jsonpath), `edges`.
+depends on it), `fields` (model field → jsonpath), `edges`, and the three
+declarations below. The schema requires all three, so an entry without them
+fails manifest load.
+
+**`sensitivity` — where the raw response may carry sensitive values**
+(`req-aws-collector-manifest-6`). Do this for every call the entry makes (the
+enumerate op, every `hydrate` op, every call inside the `custom_fn`):
+
+1. Walk the botocore output shape and list every member with the `sensitive`
+   trait. In the web container:
+   `uv run --no-sync python -c "import botocore.session as b; m=b.get_session().get_service_model('<service>'); print(m.operation_model('<Op>').output_shape)"`,
+   then recurse through `.members` / `.member` / `.value` checking
+   `shape.metadata.get('sensitive')`. Each hit is a location with
+   `"evidence": "botocore_sensitive"`.
+2. Read the shape (and the `custom_fn`) for what botocore does not flag and add
+   locations with `"evidence": "reviewer_judgement"`: environment/variable maps,
+   templates, policy documents, external ids, header values, email addresses,
+   operator descriptions, error text, and tag values wherever they ride inside
+   the item (the tag lane's `from` path, or `_hydrate.tags` for the service lane).
+3. Declare `reviewed_may_contain` with `{path, category, reason, evidence}`
+   locations (paths in the manifest dialect, rooted at the yielded item), or
+   `reviewed_none_known` — both with a `basis` naming what you read and the date.
+4. If you have not done this, declare `{"status": "unreviewed"}`. That is an
+   honest, allowed state. Never guess, and never omit the block.
+
+For an `aws_op` entry, `test_boto3_collector_sensitivity.py` fails if any
+botocore-`sensitive` member is left undeclared, or if a declared path does not
+exist in the shape. A `custom_fn` entry is checked only by your reading.
+
+**`persist_configuration` + `persist_configuration_why` — whether the node's
+`configuration` is stored** (`req-aws-collector-field-projection-7`).
+
+- If `sensitivity` lists any `credential` location, set
+  `"persist_configuration": false`, and make the reason name the location:
+  `"Off: <Op> returns <path> verbatim, and <why that is a credential>."`
+- Otherwise `true`, with a reason saying what the stored configuration carries
+  that the typed fields do not.
+- Persisting an entry that has a credential location is a known, reviewed risk
+  that needs the owner's ruling. The test suite fails as shipped if any
+  credential-bearing entry is persisted.
+- `false` stores `configuration: {}`. Before choosing it, confirm that nothing
+  the type needs is read back from the stored blob: typed fields, tags and edges
+  are always derived from the in-memory envelope, so they are unaffected.
 
 - `source`: prefer a declared `aws_op` (one list call, engine-paginated). Use a
   `custom_fn` in `customfns.py` ONLY when one logical resource needs multiple
@@ -76,8 +118,9 @@ collection for any account with ≥1 secret. **Every collected model MUST declar
 - membership in `tests/test_aws_core_tags_field.py::_COLLECTED_MODELS` (the
   always-on guard for exactly this).
 
-Same discipline for `configuration` (the lossless raw blob): JSONField + both
-schema entries.
+Same discipline for `configuration`: JSONField + both schema entries. Every
+node payload carries the key; it is the full envelope, or `{}` when the entry's
+`persist_configuration` is false.
 
 ## Step 3 — Schemas + migration
 
@@ -102,6 +145,14 @@ In `tap_plugin/aws_core/tests/` (in-package; the wheel carries them):
   `additionalProperties: false` (reuse `_create_verb_schema` /
   `_prepare_null_payload` from `test_trial_run_live.py`). This is the offline
   half of the trial-run assertion and runs in every lane.
+- **When `persist_configuration` is false:** plant a secret-shaped canary at
+  each credential location in the canned response of
+  `test_boto3_collector_slice.py`. Then add the type to `_OFF_CASES` with
+  `(entity_type, natural_key, canary, typed_field, expected_value)`.
+  - `test_credential_canary_is_not_persisted` proves the canary is in neither
+    the GRIFT document nor the stored row or its history rows.
+  - `test_flag_is_what_keeps_the_canary_out` proves the canary really is in the
+    canned response, and that the flag is what keeps it out.
 
 ## Step 5 — THE TRIAL RUN (never ship a type blind)
 

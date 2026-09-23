@@ -14,6 +14,8 @@ does not churn):
 2. Values are normalized deterministically: ``datetime``/``date`` ->
    ISO 8601 UTC (``...Z``); the engine serializes with sorted keys.
 
+Everything here builds the in-memory envelope; whether it is persisted is
+decided at emit time by the manifest entry's ``persist_configuration`` flag.
 The node ``configuration`` is the enumerate item at its root plus the
 engine-reserved ``_source`` ({op, why}); ``_hydrate`` / ``_hydrate_mapping``
 are added by the fan-out seam (later). ``_source`` is present on every node

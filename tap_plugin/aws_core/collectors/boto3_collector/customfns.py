@@ -302,7 +302,8 @@ def cloudfront_distributions_with_oac(session: Any, *, client_for: Any = None) -
     an opaque ``Id``. This ``custom_fn`` resolves every distinct OAC id a
     distribution's origins reference and embeds the results under
     ``_origin_access_controls`` (an ``{oac_id: details}`` map) so they land
-    losslessly in the distribution's ``configuration``. The OAC is a
+    losslessly in the distribution's configuration envelope (not persisted:
+    the manifest entry's ``persist_configuration`` is false). The OAC is a
     configuration detail of the distribution, not a separate node — the
     "have it handy" call from the strat-sam-demo discussion (2026-05-21).
 
@@ -480,7 +481,9 @@ def apigateway_http_apis_detailed(session: Any, *, client_for: Any) -> Iterator[
     ``GetApis`` returns the API shell; what it *fronts* lives behind four
     per-API listings — stages, routes, integrations, authorizers. This
     custom_fn fans those out and attaches them lossless (``_stages`` /
-    ``_routes`` / ``_integrations`` / ``_authorizers`` → ``configuration``),
+    ``_routes`` / ``_integrations`` / ``_authorizers`` → the configuration
+    envelope, not persisted: the manifest entry's ``persist_configuration`` is
+    false),
     then derives the two edge-resolvable keys:
 
     - ``_integration_lambda_arns`` — unqualified Lambda ARNs parsed from

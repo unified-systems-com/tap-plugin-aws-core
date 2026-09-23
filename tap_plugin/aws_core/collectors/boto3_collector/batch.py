@@ -34,17 +34,38 @@ COLLECTION_FORMAT = "tap.aws_core.collection-v0"
 _GRIFT_VERSION = "0"
 
 
+def persisted_configuration(node: ProjectedNode, *, persist_configuration: bool) -> dict[str, Any]:
+    """The ``configuration`` value to persist for ``node``.
+
+    ``persist_configuration`` is the node's manifest entry's flag
+    (``req-aws-collector-field-projection-7``): the in-memory envelope when
+    true, otherwise ``{}``. ``{}`` is sent explicitly rather than omitted so
+    the replace on import sets the column deterministically — a resource
+    stored before its entry was turned off has its configuration replaced
+    with ``{}`` the next time it is collected.
+    """
+    if persist_configuration:
+        return node.configuration
+    return {}
+
+
 def node_envelope(
     node: ProjectedNode,
     dimensions: dict[str, str],
     tags: dict[str, str] | None = None,
+    *,
+    persist_configuration: bool,
 ) -> dict[str, Any]:
     """Build a GRIFT node envelope from a projected node.
 
     The ``node`` payload is the projected typed fields, the canonical
     ``tags`` map (``req-aws-collector-tags``; ``{}`` when untagged — the
-    correct answer, never omitted), and the lossless ``configuration``
-    blob; the service layer validates it on import.
+    correct answer, never omitted), and ``configuration`` as decided by
+    :func:`persisted_configuration`; the service layer validates it on import.
+
+    ``persist_configuration`` is keyword-only and has no default: the caller
+    passes the manifest entry's ``persist_configuration`` flag, so there is
+    no path that emits a node without that decision having been made.
     """
     return {
         "entity": {
@@ -56,7 +77,7 @@ def node_envelope(
         "node": {
             **node.fields,
             "tags": tags or {},
-            "configuration": node.configuration,
+            "configuration": persisted_configuration(node, persist_configuration=persist_configuration),
         },
     }
 

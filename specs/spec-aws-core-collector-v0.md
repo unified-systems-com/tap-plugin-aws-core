@@ -10,9 +10,11 @@ The collector is **manifest-driven**. Instead of one hand-written fetch/transfor
 module per AWS resource type, a single generic engine is driven by a JSON resource
 manifest. Each manifest entry declares: which service it covers, how to enumerate
 its instances, which fields to surface as indexed model columns, and which
-relationships to materialize as edges. The full AWS payload is always retained
-verbatim in the node's `configuration` blob, so nothing collected is ever lost to
-a too-narrow projection.
+relationships to materialize as edges. The full AWS payload is retained verbatim
+in the node's in-memory `configuration` envelope, so nothing collected is ever
+lost to a too-narrow projection. Whether that envelope is persisted is decided
+per manifest entry (`persist_configuration`, rulings 2026-09-23; see
+[Field Projection](#field-projection)); the envelope is always built in memory.
 
 The design bet, validated by an offline extensibility probe before any code was
 written (S3 / EC2 / IAM hard set): roughly **80% of resources and edges across the
@@ -72,7 +74,7 @@ no encrypted secrets) are inherited as v0 fences.
 |    |              |                                                                 |
 | :---: | ---       | ---                                                             |
 | 1. | Declarative   | A JSON manifest drives collection; adding a resource is a manifest entry, not a module |
-| 2. | Lossless      | The full AWS payload is retained in `configuration`; projection never discards data |
+| 2. | Lossless      | The full AWS payload is retained in the in-memory `configuration` envelope and persisted for every entry whose manifest `persist_configuration` is true; projection never discards data |
 | 3. | Connected     | Relationships are materialized as edges via declarative rules resolved by deterministic identity |
 | 4. | Bounded       | The non-declarative residue is two write-once seams, not per-service code |
 | 5. | Conventional  | The collector is an ordinary `CollectorBase` implementation; it invents no parallel runtime |
@@ -165,6 +167,9 @@ The manifest is an ordered list of resource entries. Each entry declares:
 | `fields` | Map of model field name → jsonpath into the item (see [Field Projection](#field-projection)). |
 | `hydrate` | Optional list of per-item hydrate ops, each `{key, op, why}` (see [Fan-Out Hydrate Seam](#fan-out-hydrate-seam)). |
 | `edges` | List of declarative edge rules (see [Declarative Edge Rules](#declarative-edge-rules)). |
+| `persist_configuration` | Required boolean. Whether this entry's `configuration` envelope is persisted (see [Field Projection](#field-projection), `req-aws-collector-field-projection-7`). |
+| `persist_configuration_why` | Required, non-empty. One line saying why the flag has its value. |
+| `sensitivity` | Required. Whether this entry's raw response may carry sensitive values, and where (see [Response Sensitivity Declaration](#response-sensitivity-declaration)). |
 
 The manifest is pure data. The engine validates the manifest against a JSON
 Schema shipped alongside it at load time; a malformed manifest fails the run
@@ -175,6 +180,61 @@ identity (not by matching an already-loaded node), the engine does not depend on
 collection order. This is a deliberate divergence from the prior-art convention
 where sync order encodes the dependency graph.
 
+#### Response Sensitivity Declaration
+
+Ruling (George, 2026-09-23): masking or redacting values in `configuration` is
+ruled out — the raw responses are future audit evidence, and a masked copy is
+useless as evidence. Instead the manifest records, per entry, which responses may
+carry sensitive values and where. This is tracking, not control: persistence is
+decided by the entry's `persist_configuration` flag
+([Field Projection](#field-projection)). The two meet in one rule, below.
+
+Every entry carries a `sensitivity` block. The schema requires it, so a new
+entry without one fails manifest load; declaring `{"status": "unreviewed"}` is
+the cheap, honest default.
+
+| Key | Meaning |
+| --- | --- |
+| `status` | `unreviewed` (nobody has checked the response shape; says nothing about safety), `reviewed_none_known` (checked; no sensitive location known), or `reviewed_may_contain` (checked; `locations` lists where). Absence is not a fourth state: it is a schema error. |
+| `basis` | One line naming the method behind the status — what was read (botocore output shapes, the `custom_fn`) and when. Required for both reviewed states. |
+| `locations` | Present and non-empty exactly when `status` is `reviewed_may_contain`. Each is `{path, category, reason, evidence}`. |
+| `locations[].path` | The manifest's own path dialect (`paths.py`), resolved against the item the source yields — the root of the `configuration` envelope, so `_hydrate.<key>.data...` and `custom_fn`-added `_` keys are addressable. A path ending at a map or object covers its subtree. |
+| `locations[].category` | `credential`, `personal_data`, `customer_content`, `access_policy`, `free_text`, `diagnostic`, or `other` (defined in the schema). |
+| `locations[].evidence` | `botocore_sensitive` (the botocore service model marks the member `sensitive`) or `reviewer_judgement` (a reviewer read the shape and judged it). |
+
+Why a path list and not a per-entry boolean: the remedy when persistence returns
+will be per location (encrypt this subtree, move that one to a secret-kind
+store, drop a third), and a boolean would force re-doing the review. Why
+`evidence`: the provider's own `sensitive` trait is a checkable fact, a
+reviewer's judgement is not, and the two should not read alike. Why
+`free_text` and `diagnostic` are listed at all: operators paste secrets into
+descriptions, and error text can echo input; leaving them off would let a
+reviewed entry read as cleaner than it is.
+
+For `aws_op` entries a test resolves each declared path against botocore's
+output shape for that op, and checks that every `botocore_sensitive` location
+really carries the trait; and, as a completeness ratchet, that every member
+botocore marks `sensitive` in the item shape is covered by a declared location (a
+declared ancestor covers its subtree). `custom_fn` entries build their own items,
+so their paths and completeness are checked by reading the `custom_fn`.
+
+Tag values are operator-set arbitrary strings. Where they ride inside the
+envelope — the `field` lane's `from` path, or `_hydrate.tags` for the `service`
+lane — they are declared as `customer_content`, and a test enforces it for every
+entry on those lanes. The `rgta` lane's tags come from the per-run sweep, not the
+item.
+
+**Sensitivity and persistence.** An entry whose `sensitivity` has a `credential`
+location defaults to `persist_configuration: false`, and its
+`persist_configuration_why` names the credential location. An entry that lists a
+`credential` location and is persisted anyway is a **known, reviewed risk**: that
+is only allowed with a reason that names every such location, so the acceptance
+is visible where the decision is made. As shipped there are none — Lambda (Q38)
+and CloudFront, API Gateway HTTP API and Cognito user pool (Q40) are off, and a
+test fails if any credential-bearing entry is persisted. The canonical `tags`
+model field is persisted independently ([Resource Tags](#resource-tags)) and is
+not governed by `persist_configuration`.
+
 #### Acceptance Criteria
 
 | ACID | Title | Status | Description | Notes |
@@ -183,7 +243,8 @@ where sync order encodes the dependency graph.
 | req-aws-collector-manifest-2 | Schema Validated | Approved for Development | The manifest validates against a shipped JSON Schema at load; invalid manifest fails the run visibly. | |
 | req-aws-collector-manifest-3 | Order Independent | Approved for Development | Collection results are identical regardless of manifest entry order. | Enabled by deterministic identity. |
 | req-aws-collector-manifest-4 | Versioned | Approved for Development | The manifest carries a version recorded in the GRIFT batch provenance. | Supports drift tracking. |
-| req-aws-collector-manifest-5 | Self-Describing Entries | Approved for Development | Each entry carries a `why`, and each `hydrate` element a `{key, op, why}`; the schema requires `why` so every collected call's rationale is authorable and visible in the manifest. | Materialized per-node so a grid object is legible without the manifest. |
+| req-aws-collector-manifest-5 | Self-Describing Entries | Approved for Development | Each entry carries a `why`, and each `hydrate` element a `{key, op, why}`; the schema requires `why` so every collected call's rationale is authorable and visible in the manifest. | Materialized per-node (`_source`) so a grid object is legible without the manifest, for every entry that persists its configuration (`req-aws-collector-field-projection-7`). |
+| req-aws-collector-manifest-6 | Response Sensitivity Declared | Approved for Development | Every entry declares `sensitivity` in one of three states (`unreviewed`, `reviewed_none_known`, `reviewed_may_contain`); a missing declaration fails schema validation; `reviewed_may_contain` lists `{path, category, reason, evidence}` locations. | Ruling 2026-09-23. Credential locations default the entry to not persisting (see `req-aws-collector-field-projection-7`). `tests/test_boto3_collector_sensitivity.py`. |
 
 ### Source Primitive
 ----
@@ -251,9 +312,11 @@ For each item:
   are stable across SDK versions; the real variability is conditional/optional
   fields absent on a given instance, which this handles by design — it mirrors
   the existing `aws_core` hybrid nullable-field pattern, `req-aws-core-fields-3`.)
-- the **entire raw item** is stored verbatim in the node's `configuration`
-  JSONField (`req-aws-core-fields-1`), so no AWS attribute is ever lost even if
-  it is not surfaced as a typed field.
+- the **entire raw item** is retained verbatim in the node's in-memory
+  `configuration` envelope, so no AWS attribute is lost to projection even if it
+  is not surfaced as a typed field. Whether that envelope is **persisted** to the
+  `configuration` JSONField (`req-aws-core-fields-1`) is decided per entry by
+  the manifest's `persist_configuration`, below.
 - the node's `name` is taken from the manifest-declared name field or the
   natural key.
 
@@ -318,16 +381,54 @@ Two engine rules keep the blob stable across runs:
   false History entries, protecting the "re-run live in the demo" and
   audit-evidence properties.
 
+**Per-entry configuration persistence (rulings 2026-09-23, Q38 and Q40).**
+`configuration` does two jobs: it is the raw boto3 response kept as future audit
+evidence, and it is where everything that does not fit a typed field lives —
+hydrate posture (`_hydrate`: S3 encryption, versioning, public-access block,
+policy), `custom_fn` additions, `_source` provenance. A blanket halt (the first
+design on this PR) lost the second job to protect the first, so persistence is
+decided per resource type instead.
+
+Every manifest entry declares `persist_configuration` (boolean) and
+`persist_configuration_why` (non-empty string), both required by the schema.
+The reason is required when the flag is true as well as false: every other
+decision in the manifest carries a `why` (`req-aws-collector-manifest-5`), and a
+persisted entry that lists a credential location must say so there (see
+[Response Sensitivity Declaration](#response-sensitivity-declaration)).
+
+The cut is at the GRIFT emit: `node_envelope` takes `persist_configuration` as a
+required keyword with no default, and the collector passes the entry's flag. The
+engine builds the full envelope in memory either way, so typed fields, tags,
+hydrate-gap warnings and edges are derived identically; a `false` entry emits
+`configuration: {}`. `{}` is sent explicitly, not omitted, so the replace on
+import is deterministic — a resource stored before its entry was turned off has
+its configuration replaced with `{}` the next time it is collected. No migration
+and no model change. History rows are left as they are (ruling Q39: the data so
+far is synthetic or drawn from open repositories).
+
+Off, as shipped, each with a reason naming the credential location:
+`aws_core__aws_lambda` (`Environment.Variables`), `aws_core__aws_cloudfront_distribution`
+(`Origins.Items[].CustomHeaders.Items[].HeaderValue`),
+`aws_core__aws_apigateway_http_api` (`_integrations[].RequestParameters`),
+`aws_core__aws_cognito_user_pool` (`SmsConfiguration.ExternalId`). For those
+four types the grid holds only typed fields, tags and edges; nothing downstream
+reads the stored blob. Every other entry persists its full configuration.
+
 #### Acceptance Criteria
+
+| ACID | Title | Status | Description | Notes |
+| --- | --- | :---: | --- | --- |
+| req-aws-collector-field-projection-1#### Acceptance Criteria
 
 | ACID | Title | Status | Description | Notes |
 | --- | --- | :---: | --- | --- |
 | req-aws-collector-field-projection-1 | Declared Field Mapping | Approved for Development | Typed fields are populated from manifest jsonpaths. | |
 | req-aws-collector-field-projection-2 | Graceful Missing | Approved for Development | An unresolved jsonpath yields `null`, never a run failure. | |
-| req-aws-collector-field-projection-3 | Lossless Payload | Approved for Development | The full raw item is stored in `configuration`. | |
+| req-aws-collector-field-projection-3 | Lossless Payload | Approved for Development | The full raw item is retained in the in-memory `configuration` envelope; it is persisted when the entry's `persist_configuration` is true (`req-aws-collector-field-projection-7`). | |
 | req-aws-collector-field-projection-4 | No Silent Coercion | Approved for Development | Values are passed through; model/service-layer validation is the sole gate. | |
 | req-aws-collector-field-projection-5 | One Canonical Timestamp | Approved for Development | All date input shapes normalize at collection into one ISO 8601 UTC envelope field; "created/updated after X" is one query, never per-resource spelunking. | Grid-native time is the always-present spine; AWS-source time is null where AWS omits it. |
-| req-aws-collector-field-projection-6 | Reserved Keys & Stable Blob | Approved for Development | `_source`/`_hydrate`/`_hydrate_mapping` are engine-reserved (not authored jsonpath targets); `ResponseMetadata` stripped; deterministic serialization ⇒ unchanged resource = byte-identical `configuration`. | Protects idempotent upsert + History/FLIP. |
+| req-aws-collector-field-projection-6 | Reserved Keys & Stable Blob | Approved for Development | `_source`/`_hydrate`/`_hydrate_mapping` are engine-reserved (not authored jsonpath targets); `ResponseMetadata` stripped; deterministic serialization ⇒ unchanged resource = byte-identical `configuration`. | Protects idempotent upsert + History/FLIP. Reserved keys are in-memory only for an entry whose `persist_configuration` is false. |
+| req-aws-collector-field-projection-7 | Per-Entry Configuration Persistence | Approved for Development | Each manifest entry's required `persist_configuration` boolean and non-empty `persist_configuration_why` decide whether the emitted node payload carries the in-memory envelope or `{}`; typed fields, tags and edges are unchanged either way; an entry with a `credential` sensitivity location defaults to false; no model field is removed and no migration is written. | Rulings 2026-09-23 Q38, Q40. `tests/test_boto3_collector_batch.py`, `tests/test_boto3_collector_slice.py::test_credential_canary_is_not_persisted`, `::test_s3_bucket_persists_its_configuration_with_posture`, `tests/test_boto3_collector_sensitivity.py`. |
 
 ### Deterministic Identity
 ----
@@ -1011,7 +1112,8 @@ not).
   CloudQuery single-helper pattern is the model. Raw-retention follows the
   `tags`/`tags_raw` discipline but is path-aware: the variable-shaped
   **side-quest** path retains the raw response losslessly via the
-  `_hydrate` envelope (with the `ok|absent|denied|error` slot status);
+  `_hydrate` envelope (with the `ok|absent|denied|error` slot status),
+  stored when the entry's `persist_configuration` is true;
   the **RGTA** path needs no separate raw store because RGTA's
   `list_kv`↔`map` is information-preserving (AWS tag keys are unique per
   resource, values are strings) — the canonical `{str:str}` map is itself

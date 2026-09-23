@@ -26,7 +26,10 @@
         "why",
         "items_path",
         "natural_key",
-        "fields"
+        "fields",
+        "persist_configuration",
+        "persist_configuration_why",
+        "sensitivity"
       ],
       "properties": {
         "entity_type": { "type": "string", "minLength": 1 },
@@ -49,7 +52,17 @@
         "edges": {
           "type": "array",
           "items": { "$ref": "#/$defs/edge_rule" }
-        }
+        },
+        "persist_configuration": {
+          "description": "Whether the collector persists this entry's configuration envelope (the enumerate item, custom_fn and hydrate additions, and the engine-reserved _source/_hydrate keys) into the node's configuration field. False emits configuration {} for every node of this type; typed fields, tags and edges are derived from the in-memory envelope either way. Rulings 2026-09-23 (Q38, Q40): decided per entry, never globally; an entry with a credential sensitivity location defaults to false. See req-aws-collector-field-projection-7.",
+          "type": "boolean"
+        },
+        "persist_configuration_why": {
+          "description": "One line saying why persist_configuration has the value it has. Required and non-empty whichever way the flag is set: when false it names what is being kept out of storage; when true on an entry whose sensitivity lists a credential location it is where that known, accepted risk is acknowledged.",
+          "type": "string",
+          "minLength": 1
+        },
+        "sensitivity": { "$ref": "#/$defs/sensitivity" }
       }
     },
     "source": {
@@ -150,6 +163,134 @@
         "edge_type": { "type": "string", "minLength": 1 },
         "direction": { "type": "string", "enum": ["outbound", "inbound"] },
         "transform": { "type": "string", "minLength": 1 }
+      }
+    },
+    "sensitivity": {
+      "description": "Whether this entry's raw AWS response (the item the source yields, which becomes the node's configuration envelope) may carry sensitive values, and where. Required on every entry. Three states, and absence is none of them: an entry without this block fails schema validation, so 'nobody has looked' can never read as 'safe'. Tracking only: it does not decide persistence (persist_configuration does). An entry that persists its configuration while listing a credential location here is a known, reviewed risk (req-aws-collector-manifest-6). Masking is not the remedy; the raw response is future audit evidence.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "description": "unreviewed: nobody has checked this response shape yet (the default for a new entry; says nothing about safety). reviewed_none_known: the response shape was checked and no location is known to carry sensitive values. reviewed_may_contain: the shape was checked and the listed locations may carry sensitive values.",
+          "type": "string",
+          "enum": [
+            "unreviewed",
+            "reviewed_none_known",
+            "reviewed_may_contain"
+          ]
+        },
+        "basis": {
+          "description": "One line naming the method behind the status: what was read (for example which botocore output shapes and which custom_fn) and when. Required for both reviewed states; for unreviewed, optionally why it is not yet reviewed.",
+          "type": "string",
+          "minLength": 1
+        },
+        "locations": {
+          "description": "The response locations that may carry sensitive values. Present and non-empty exactly when status is reviewed_may_contain.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/sensitive_location"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "reviewed_may_contain"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "basis",
+              "locations"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "reviewed_none_known"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "basis"
+            ],
+            "not": {
+              "required": [
+                "locations"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unreviewed"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "locations"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "sensitive_location": {
+      "description": "One place in the raw response that may carry a sensitive value.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "category",
+        "reason",
+        "evidence"
+      ],
+      "properties": {
+        "path": {
+          "description": "Location in the manifest's own path dialect (paths.py: dotted keys, [] to flatten a list), resolved against the item the source yields, which is the root of the node's configuration envelope. A path ending at a map or object covers its whole subtree.",
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "description": "credential: secret material that grants access if disclosed (keys, tokens, shared-secret headers, external ids). personal_data: data identifying a natural person (email addresses, human user or session names). customer_content: operator-authored payloads whose structure AWS does not constrain (environment variables, templates, patterns) and which may embed any other category. access_policy: resource or trust policy documents; not secret, but a map of who can reach what. free_text: operator-authored descriptions and comments. diagnostic: service-composed error or status messages that may echo sensitive input. other: none of these; the reason must say why it is listed.",
+          "type": "string",
+          "enum": [
+            "credential",
+            "personal_data",
+            "customer_content",
+            "access_policy",
+            "free_text",
+            "diagnostic",
+            "other"
+          ]
+        },
+        "reason": {
+          "description": "One line saying what sensitive value could appear here.",
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "description": "How this location was identified. botocore_sensitive: the botocore service model marks the member with the sensitive trait. reviewer_judgement: a reviewer read the output shape (or the custom_fn that builds the item) and judged it.",
+          "type": "string",
+          "enum": [
+            "botocore_sensitive",
+            "reviewer_judgement"
+          ]
+        }
       }
     }
   }

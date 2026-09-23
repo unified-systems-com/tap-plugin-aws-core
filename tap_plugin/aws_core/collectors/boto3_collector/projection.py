@@ -8,8 +8,10 @@ Each raw item becomes a typed-node projection:
 - declared model fields are extracted via the manifest's per-field jsonpaths,
   with graceful-missing semantics — an unresolved path yields ``None``, never
   a run failure (``req-aws-collector-field-projection-2``);
-- the **entire raw item** is retained verbatim in ``configuration`` so no AWS
-  attribute is ever lost (``req-aws-collector-field-projection-3``);
+- the **entire raw item** is retained verbatim in the in-memory
+  ``configuration`` envelope (``req-aws-collector-field-projection-3``).
+  Whether that envelope is persisted is decided at emit time by the
+  manifest entry's ``persist_configuration`` flag;
 - identity is deterministic from ``(entity_type, natural_key)`` so re-runs
   upsert in place (``req-aws-collector-identity``).
 

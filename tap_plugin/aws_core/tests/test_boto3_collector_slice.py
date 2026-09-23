@@ -12,6 +12,7 @@ custom_fn) and the hydrate seam are the next increment.
 
 from __future__ import annotations
 
+import json
 import uuid
 
 import pytest
@@ -22,6 +23,7 @@ from tap_plugin.aws_core.collectors.boto3_collector.identity import (
     edge_entity_id,
     node_entity_id,
 )
+from tap_plugin.aws_core.collectors.boto3_collector.manifest import manifest_entries
 
 from tap_cares.collectors.config import CollectorConfig
 from tap_cares.secrets.models import Secret, SecretRef
@@ -33,6 +35,17 @@ _DIST_ARN = f"arn:aws:cloudfront::{_ACCOUNT}:distribution/E1ABCDEF"
 _LOG_GROUP = "/aws/lambda/sam-handler"  # == the Lambda's LoggingConfig.LogGroup
 _ZONE_ID = "/hostedzone/ZSLICE000001"
 _CF_DOMAIN = "d111abcdef.cloudfront.net"  # == _CANNED list_distributions DomainName
+_ENV_CANARY = "canary-db-password-5f1e"  # a Lambda env value that must never persist
+_BUCKET = "sam-site"
+# Secret-shaped canaries planted at each manifest-declared credential location
+# whose entry has persist_configuration: false. None may persist anywhere.
+_CF_CANARY = "canary-origin-verify-9c2a"
+_APIGW_CANARY = "canary-backend-api-key-41d7"
+_COGNITO_CANARY = "canary-sns-external-id-7b30"
+_API_ID = "sliceapi01"
+_API_ARN = f"arn:aws:apigateway:::/apis/{_API_ID}"  # canned clients carry no region
+_POOL_ID = "us-east-1_Slice0001"
+_BUCKET_ARN = f"arn:aws:s3:::{_BUCKET}"
 
 _CANNED = {
     "list_functions": {
@@ -47,6 +60,9 @@ _CANNED = {
                 "Role": _ROLE_ARN,
                 "LoggingConfig": {"LogGroup": "/aws/lambda/sam-handler"},
                 "LastModified": "2026-01-02T03:04:05.000+0000",
+                # Secret-shaped environment: the Lambda manifest entry has
+                # persist_configuration: false, so none of this may be stored.
+                "Environment": {"Variables": {"DB_PASSWORD": _ENV_CANARY, "STAGE": "prod"}},
             }
         ]
     },
@@ -72,7 +88,17 @@ _CANNED = {
                     "DomainName": "d111abcdef.cloudfront.net",
                     "Status": "Deployed",
                     "Enabled": True,
-                    "Origins": {"Items": [{"DomainName": "sam-site.s3.amazonaws.com"}]},
+                    "Origins": {
+                        "Items": [
+                            {
+                                "DomainName": "sam-site.s3.amazonaws.com",
+                                "CustomHeaders": {
+                                    "Quantity": 1,
+                                    "Items": [{"HeaderName": "X-Origin-Verify", "HeaderValue": _CF_CANARY}],
+                                },
+                            }
+                        ]
+                    },
                     "ViewerCertificate": {},
                 }
             ]
@@ -125,6 +151,50 @@ _CANNED = {
                 "ResourceRecords": [{"Value": '"v=spf1 -all"'}],
             },
         ]
+    },
+    # S3 bucket + hydrate posture — the persist_configuration: true side of
+    # the per-entry flag. get_bucket_versioning / get_bucket_policy_status /
+    # get_bucket_location fall through to {} (a successful empty response).
+    "list_buckets": {"Buckets": [{"Name": _BUCKET, "BucketArn": _BUCKET_ARN}]},
+    "get_bucket_encryption": {
+        "ServerSideEncryptionConfiguration": {
+            "Rules": [{"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}]
+        }
+    },
+    "get_public_access_block": {
+        "PublicAccessBlockConfiguration": {
+            "BlockPublicAcls": True,
+            "IgnorePublicAcls": True,
+            "BlockPublicPolicy": True,
+            "RestrictPublicBuckets": True,
+        }
+    },
+    # API Gateway v2 HTTP API with a static header mapping carrying a key.
+    # get_stages / get_routes / get_authorizers fall through to {} (no items).
+    "get_apis": {"Items": [{"ApiId": _API_ID, "Name": "sam-api", "ProtocolType": "HTTP"}]},
+    "get_integrations": {
+        "Items": [
+            {
+                "IntegrationId": "int1",
+                "IntegrationType": "HTTP_PROXY",
+                "IntegrationUri": "https://backend.example.com",
+                "RequestParameters": {"append:header.x-api-key": _APIGW_CANARY},
+            }
+        ]
+    },
+    # Cognito user pool whose SMS role assumption uses an external id.
+    "list_user_pools": {"UserPools": [{"Id": _POOL_ID, "Name": "sam-pool"}]},
+    "describe_user_pool": {
+        "UserPool": {
+            "Id": _POOL_ID,
+            "Name": "sam-pool",
+            "Arn": f"arn:aws:cognito-idp:us-east-1:{_ACCOUNT}:userpool/{_POOL_ID}",
+            "MfaConfiguration": "OFF",
+            "SmsConfiguration": {
+                "SnsCallerArn": f"arn:aws:iam::{_ACCOUNT}:role/sam-sms",
+                "ExternalId": _COGNITO_CANARY,
+            },
+        }
     },
     # IAM role tags — service side-quest (RGTA excludes IAM roles).
     "list_role_tags": {"Tags": [{"Key": "Owner", "Value": "sam-aydlette"}, {"Key": "Env", "Value": "prod"}]},
@@ -218,13 +288,17 @@ def test_canned_lambda_and_role_land_on_grid(_stub_aws):
     assert len(ledger_entries) == 1
     assert isinstance(ledger_entries[0]["message_data"]["calls"], list)
 
-    # The Lambda node landed, typed + lossless, by deterministic identity.
+    # The Lambda node landed, typed, by deterministic identity. Its manifest
+    # entry has persist_configuration: false, so configuration is empty while
+    # every typed field is still projected.
     fn = get_node(node_entity_id("aws_core__aws_lambda", _FN_ARN))
     assert fn.name == "sam-handler"
+    assert fn.function_arn == _FN_ARN
     assert fn.runtime == "python3.13"
+    assert fn.handler == "app.handler"
     assert fn.memory_size == 256
-    assert fn.configuration["FunctionArn"] == _FN_ARN  # lossless blob
-    assert fn.configuration["_source"]["op"] == "ListFunctions"
+    assert fn.timeout == 30
+    assert fn.configuration == {}
 
     # Lambda tags came via the RGTA path (joined by FunctionArn).
     assert fn.tags == {"Owner": "sam"}
@@ -373,3 +447,102 @@ def test_rejected_grift_batch_fails_loudly_not_silently(_stub_aws, monkeypatch):
     assert len(errs) == 1
     assert "duplicate_entity_id" in errs[0]["message"]
     assert "nothing landed" in errs[0]["message"]
+
+
+def _run_collector():
+    collector = Boto3Collector(CollectorConfig(collector_entity_id=uuid.uuid7(), collection_job_entity_id=uuid.uuid7()))
+    collector.run()
+    assert collector.results["error"] == []
+
+
+def _entry(entity_type: str) -> dict:
+    return next(e for e in manifest_entries() if e["entity_type"] == entity_type)
+
+
+@pytest.mark.django_db
+def test_s3_bucket_persists_its_configuration_with_posture(_stub_aws):
+    """A persist_configuration: true entry stores the full envelope,
+    hydrate posture and _source included."""
+    from tap_grid.services import get_node
+
+    assert _entry("aws_core__aws_s3_bucket")["persist_configuration"] is True
+    _run_collector()
+    bucket = get_node(node_entity_id("aws_core__aws_s3_bucket", _BUCKET_ARN))
+    config = bucket.configuration
+    assert config["BucketArn"] == _BUCKET_ARN
+    assert config["_source"]["op"] == "s3_buckets_hydrated"
+    assert config["_hydrate"]["encryption"]["status"] == "ok"
+    rule = config["_hydrate"]["encryption"]["data"]["ServerSideEncryptionConfiguration"]["Rules"][0]
+    assert rule["ApplyServerSideEncryptionByDefault"]["SSEAlgorithm"] == "AES256"
+    pab = config["_hydrate"]["public_access_block"]["data"]["PublicAccessBlockConfiguration"]
+    assert pab["BlockPublicPolicy"] is True
+    assert config["_hydrate_mapping"]["policy"]["op"] == "GetBucketPolicy"
+
+
+# (entity_type, natural_key, canary, typed field name, expected typed value)
+_OFF_CASES = [
+    ("aws_core__aws_lambda", _FN_ARN, _ENV_CANARY, "runtime", "python3.13"),
+    ("aws_core__aws_cloudfront_distribution", _DIST_ARN, _CF_CANARY, "domain_name", _CF_DOMAIN),
+    ("aws_core__aws_apigateway_http_api", _API_ARN, _APIGW_CANARY, "api_id", _API_ID),
+    ("aws_core__aws_cognito_user_pool", _POOL_ID, _COGNITO_CANARY, "mfa_configuration", "OFF"),
+]
+_OFF_IDS = [case[0] for case in _OFF_CASES]
+
+
+def _row_dump(node) -> str:
+    """Every concrete column value on the node row plus its history rows."""
+    values = [getattr(node, f.attname) for f in node._meta.concrete_fields]
+    values += [getattr(h, f.attname) for h in node.history.all() for f in h._meta.concrete_fields]
+    return json.dumps(values, default=str)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(("entity_type", "natural_key", "canary", "field", "value"), _OFF_CASES, ids=_OFF_IDS)
+def test_credential_canary_is_not_persisted(_stub_aws, monkeypatch, entity_type, natural_key, canary, field, value):
+    """A persist_configuration: false entry stores none of its raw response.
+
+    Checked at both boundaries: the GRIFT document handed to submit_grift,
+    and the stored node row with its history rows. Typed fields still land.
+    """
+    from tap_grid.services import get_node
+
+    assert _entry(entity_type)["persist_configuration"] is False
+    submitted: list[str] = []
+    real_submit = Boto3Collector.submit_grift
+
+    def _capture(self, document, **kwargs):
+        submitted.append(json.dumps(document, default=str))
+        return real_submit(self, document, **kwargs)
+
+    monkeypatch.setattr(Boto3Collector, "submit_grift", _capture)
+    _run_collector()
+
+    assert len(submitted) == 1
+    assert canary not in submitted[0]
+
+    node = get_node(node_entity_id(entity_type, natural_key))
+    assert node.configuration == {}
+    assert getattr(node, field) == value  # typed projection unaffected
+    assert canary not in _row_dump(node)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(("entity_type", "natural_key", "canary", "field", "value"), _OFF_CASES, ids=_OFF_IDS)
+def test_flag_is_what_keeps_the_canary_out(_stub_aws, monkeypatch, entity_type, natural_key, canary, field, value):
+    """The entry's flag is the only control, and the canary really is in the
+    canned response: set true, the canary is stored; back to false (the
+    shipped value), the next collection replaces it with ``{}``."""
+    from tap_grid.services import get_node
+
+    entry = _entry(entity_type)
+    monkeypatch.setitem(entry, "persist_configuration", True)
+    _run_collector()
+    node = get_node(node_entity_id(entity_type, natural_key))
+    assert canary in json.dumps(node.configuration)
+    assert node.configuration["_source"]["why"] == entry["why"]
+
+    monkeypatch.setitem(entry, "persist_configuration", False)
+    _run_collector()
+    node = get_node(node_entity_id(entity_type, natural_key))
+    assert node.configuration == {}
+    assert getattr(node, field) == value

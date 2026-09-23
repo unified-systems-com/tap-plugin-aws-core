@@ -310,7 +310,14 @@ class Boto3Collector(CollectorBase):
                         if tag_slot is not None:
                             node.configuration.setdefault("_hydrate", {})["tags"] = tag_slot
                             node.configuration.setdefault("_hydrate_mapping", {})["tags"] = tag_mapping
-                        node_envelopes.append(node_envelope(node, dimensions, tags))
+                        node_envelopes.append(
+                            node_envelope(
+                                node,
+                                dimensions,
+                                tags,
+                                persist_configuration=entry["persist_configuration"],
+                            )
+                        )
                         for slot, rec in node.configuration.get("_hydrate", {}).items():
                             if rec.get("status") in ("denied", "error"):
                                 self.record_warn(
