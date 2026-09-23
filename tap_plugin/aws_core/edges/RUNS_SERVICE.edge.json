@@ -1,0 +1,14 @@
+{
+  "slug": "RUNS_SERVICE__aws_core",
+  "name": "Runs Service",
+  "description": "An ECS cluster runs an ECS service: the service's tasks are scheduled on the cluster (cluster -> service). The cluster is the capacity and control plane; the service is what it keeps running. 'Which services does cluster X run' is a fan-out over this edge; 'which cluster is service Y on' is the same edge reversed.",
+  "sources": [
+    "aws_core__aws_ecs_cluster"
+  ],
+  "targets": [
+    "aws_core__aws_ecs_service"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}
