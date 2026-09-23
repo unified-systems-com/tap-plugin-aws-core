@@ -6,15 +6,15 @@
   "batches": [
     {
       "batch_entity": {
-        "entity_id": "019dd143-3e8f-73e4-b0fa-e52ee20fda3d",
+        "entity_id": "01a0cba5-8214-7150-a30c-a09fc484e5b8",
         "entity_type": "batch",
-        "name": "AWS regions v0.1.0",
+        "name": "AWS regions v0.2.0",
         "dimensions": {}
       },
       "batch_node": {
         "source": "plugins.aws_core",
-        "name": "AWS regions v0.1.0",
-        "description": "AWS global infrastructure regions and availability zones."
+        "name": "AWS regions v0.2.0",
+        "description": "AWS global infrastructure regions and availability zones. v0.2.0 adds the AWS GovCloud (US) partition: us-gov-east-1 and us-gov-west-1 with three AZs each (documented, not observed)."
       },
       "nodes": [
         {
@@ -1754,6 +1754,104 @@
             "name": "us-west-2d",
             "zone_id": "usw2-az4"
           }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0a0c281b019",
+            "entity_type": "aws_core__aws_region",
+            "name": "AWS GovCloud (US-East)",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "AWS GovCloud (US-East)",
+            "region_code": "us-gov-east-1",
+            "geographic_area": "North America"
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0a1276acc41",
+            "entity_type": "aws_core__aws_az",
+            "name": "us-gov-east-1a",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "us-gov-east-1a",
+            "zone_id": "usge1-az1"
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0a381f097fb",
+            "entity_type": "aws_core__aws_az",
+            "name": "us-gov-east-1b",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "us-gov-east-1b",
+            "zone_id": "usge1-az2"
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0a5d1d1a1a0",
+            "entity_type": "aws_core__aws_az",
+            "name": "us-gov-east-1c",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "us-gov-east-1c",
+            "zone_id": "usge1-az3"
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0a73845b0bb",
+            "entity_type": "aws_core__aws_region",
+            "name": "AWS GovCloud (US-West)",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "AWS GovCloud (US-West)",
+            "region_code": "us-gov-west-1",
+            "geographic_area": "North America"
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0a8caca37ad",
+            "entity_type": "aws_core__aws_az",
+            "name": "us-gov-west-1a",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "us-gov-west-1a",
+            "zone_id": "usgw1-az1"
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0aa698400b7",
+            "entity_type": "aws_core__aws_az",
+            "name": "us-gov-west-1b",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "us-gov-west-1b",
+            "zone_id": "usgw1-az2"
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0ac3a170009",
+            "entity_type": "aws_core__aws_az",
+            "name": "us-gov-west-1c",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "us-gov-west-1c",
+            "zone_id": "usgw1-az3"
+          }
         }
       ],
       "edges": [
@@ -3265,6 +3363,90 @@
           "edge": {
             "from_entity_id": "019dd143-3e8f-73e4-b0fa-e5502a3ff202",
             "to_entity_id": "019dd143-3e8f-73e4-b0fa-e5bcc33d3115",
+            "edge_type": "DIVIDED_INTO_AZ__aws_core",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0a25cf780d2",
+            "entity_type": "edge",
+            "name": "DIVIDED_INTO_AZ",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0cba5-8214-7150-a30c-a0a0c281b019",
+            "to_entity_id": "01a0cba5-8214-7150-a30c-a0a1276acc41",
+            "edge_type": "DIVIDED_INTO_AZ__aws_core",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0a4dc133775",
+            "entity_type": "edge",
+            "name": "DIVIDED_INTO_AZ",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0cba5-8214-7150-a30c-a0a0c281b019",
+            "to_entity_id": "01a0cba5-8214-7150-a30c-a0a381f097fb",
+            "edge_type": "DIVIDED_INTO_AZ__aws_core",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0a6117e447c",
+            "entity_type": "edge",
+            "name": "DIVIDED_INTO_AZ",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0cba5-8214-7150-a30c-a0a0c281b019",
+            "to_entity_id": "01a0cba5-8214-7150-a30c-a0a5d1d1a1a0",
+            "edge_type": "DIVIDED_INTO_AZ__aws_core",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0a9e9338d4c",
+            "entity_type": "edge",
+            "name": "DIVIDED_INTO_AZ",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0cba5-8214-7150-a30c-a0a73845b0bb",
+            "to_entity_id": "01a0cba5-8214-7150-a30c-a0a8caca37ad",
+            "edge_type": "DIVIDED_INTO_AZ__aws_core",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0aba2bfb4ec",
+            "entity_type": "edge",
+            "name": "DIVIDED_INTO_AZ",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0cba5-8214-7150-a30c-a0a73845b0bb",
+            "to_entity_id": "01a0cba5-8214-7150-a30c-a0aa698400b7",
+            "edge_type": "DIVIDED_INTO_AZ__aws_core",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0cba5-8214-7150-a30c-a0ad155d99f2",
+            "entity_type": "edge",
+            "name": "DIVIDED_INTO_AZ",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0cba5-8214-7150-a30c-a0a73845b0bb",
+            "to_entity_id": "01a0cba5-8214-7150-a30c-a0ac3a170009",
             "edge_type": "DIVIDED_INTO_AZ__aws_core",
             "properties": {}
           }
