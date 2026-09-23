@@ -7,6 +7,8 @@
       "scope": "global",
       "source": { "custom_fn": "aws_account_singleton" },
       "why": "The AWS account this run is scoped to — the container every collected resource belongs to. Synthesized from STS GetCallerIdentity; no AWS API enumerates 'the account' as a resource.",
+      "persist_configuration": true,
+      "persist_configuration_why": "On: carries the posture and relationship detail the typed fields do not; no credential location is declared in sensitivity.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore sts GetCallerIdentity and iam ListAccountAliases output shapes and custom_fn aws_account_singleton, 2026-09-23.",
@@ -38,6 +40,8 @@
       "scope": "regional",
       "source": { "aws_op": "ListFunctions" },
       "why": "Enumerate Lambda functions — serverless compute and a common runtime/compliance surface.",
+      "persist_configuration": false,
+      "persist_configuration_why": "Off: ListFunctions returns Environment.Variables verbatim, and Lambda environment variables routinely hold credentials (API keys, database passwords, tokens). Ruling 2026-09-23 (Q38).",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore lambda ListFunctions output shape (FunctionConfiguration), 2026-09-23.",
@@ -112,6 +116,8 @@
       "scope": "global",
       "source": { "aws_op": "ListRoles" },
       "why": "Enumerate IAM roles — assumption targets and the identity backbone for service permissions.",
+      "persist_configuration": true,
+      "persist_configuration_why": "On: carries the posture and relationship detail the typed fields do not; no credential location is declared in sensitivity.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore iam ListRoles output shape (Role), 2026-09-23.",
@@ -170,6 +176,8 @@
       "scope": "regional",
       "source": { "custom_fn": "eventbridge_rules_with_targets" },
       "why": "Enumerate EventBridge rules — event/schedule triggers — with their target ARNs resolved (ListRules gives the rule; ListTargetsByRule gives what it invokes).",
+      "persist_configuration": true,
+      "persist_configuration_why": "On: carries the posture and relationship detail the typed fields do not; no credential location is declared in sensitivity.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore events ListRules output shape (Rule) and custom_fn eventbridge_rules_with_targets, which keeps only target ARNs, never a target's Input, 2026-09-23.",
@@ -225,6 +233,8 @@
       "scope": "regional",
       "source": { "aws_op": "DescribeLogGroups" },
       "why": "Enumerate CloudWatch log groups — log destinations and audit-trail surfaces.",
+      "persist_configuration": true,
+      "persist_configuration_why": "On: carries the posture and relationship detail the typed fields do not; no credential location is declared in sensitivity.",
       "sensitivity": {
         "status": "reviewed_none_known",
         "basis": "Read botocore logs DescribeLogGroups output shape (LogGroup: names, ARNs, retention, KMS key id, class); no sensitive trait and no free text, 2026-09-23. Log contents are never fetched."
@@ -259,6 +269,8 @@
       "scope": "regional",
       "source": { "aws_op": "ListCertificates" },
       "why": "Enumerate ACM certificates — TLS certificates and their issuance/expiry state.",
+      "persist_configuration": true,
+      "persist_configuration_why": "On: carries the posture and relationship detail the typed fields do not; no credential location is declared in sensitivity.",
       "sensitivity": {
         "status": "reviewed_none_known",
         "basis": "Read botocore acm ListCertificates output shape (CertificateSummary: ARN, domain names, status, key algorithm, dates); no certificate body or private key is returned, 2026-09-23."
@@ -284,6 +296,8 @@
       "scope": "global",
       "source": { "custom_fn": "cloudfront_distributions_with_oac" },
       "why": "Enumerate CloudFront distributions — CDN/edge entry points and their origins. Each origin's Origin Access Control (OAC) is resolved and embedded in configuration.",
+      "persist_configuration": false,
+      "persist_configuration_why": "Off: ListDistributions returns Origins.Items[].CustomHeaders.Items[].HeaderValue verbatim, and custom origin headers are commonly a shared secret between CloudFront and the origin. Ruling 2026-09-23 (Q40).",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore cloudfront ListDistributions (DistributionSummary) and GetOriginAccessControl output shapes and custom_fn cloudfront_distributions_with_oac, 2026-09-23.",
@@ -357,6 +371,8 @@
       "scope": "global",
       "source": { "custom_fn": "s3_buckets_hydrated" },
       "why": "Enumerate S3 buckets — object storage; content origins, state, and data stores.",
+      "persist_configuration": true,
+      "persist_configuration_why": "On: carries the posture and relationship detail the typed fields do not; no credential location is declared in sensitivity.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore s3 ListBuckets and the six hydrate ops' output shapes (GetBucketLocation, GetPublicAccessBlock, GetBucketEncryption, GetBucketVersioning, GetBucketPolicyStatus, GetBucketPolicy) and custom_fn s3_buckets_hydrated, 2026-09-23. Object contents are never fetched.",
@@ -439,6 +455,8 @@
       "scope": "global",
       "source": { "custom_fn": "route53_zones_with_alias_targets" },
       "why": "Enumerate Route 53 hosted zones with resolved alias targets — DNS topology and routing.",
+      "persist_configuration": true,
+      "persist_configuration_why": "On: carries the posture and relationship detail the typed fields do not; no credential location is declared in sensitivity.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore route53 ListHostedZones output shape (HostedZone) and custom_fn route53_zones_with_alias_targets, which adds only CloudFront alias domains and ARNs, never full record sets, 2026-09-23.",
@@ -498,6 +516,8 @@
       "scope": "regional",
       "source": { "custom_fn": "dynamodb_tables_described" },
       "why": "Enumerate DynamoDB tables — table-shaped NoSQL state stores; e.g. Terraform's tfstate-lock table.",
+      "persist_configuration": true,
+      "persist_configuration_why": "On: carries the posture and relationship detail the typed fields do not; no credential location is declared in sensitivity.",
       "sensitivity": {
         "status": "reviewed_none_known",
         "basis": "Read botocore dynamodb DescribeTable output shape (TableDescription: schema, key and attribute names, throughput, SSE, replicas); no item data and no sensitive trait, 2026-09-23."
@@ -523,6 +543,8 @@
       "scope": "global",
       "source": { "custom_fn": "iam_oidc_providers_described" },
       "why": "Enumerate IAM OIDC identity providers — federated machine identities (e.g. GitHub Actions) that trust this account.",
+      "persist_configuration": true,
+      "persist_configuration_why": "On: carries the posture and relationship detail the typed fields do not; no credential location is declared in sensitivity.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore iam GetOpenIDConnectProvider output shape (Url, ClientIDList, ThumbprintList, CreateDate, Tags); OIDC client ids are public audience values, not client secrets, and thumbprints are of public CA certificates, 2026-09-23.",
@@ -568,6 +590,8 @@
       "scope": "regional",
       "source": { "custom_fn": "apigateway_http_apis_detailed" },
       "why": "Enumerate API Gateway v2 HTTP APIs — managed HTTP front doors — with stages, routes, integrations, and authorizers resolved so API -> Lambda and API -> Cognito relationships land as edges.",
+      "persist_configuration": false,
+      "persist_configuration_why": "Off: the GetIntegrations fan-out returns _integrations[].RequestParameters verbatim, and static parameter mappings can inject a backend API key into every request. Ruling 2026-09-23 (Q40).",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore apigatewayv2 GetApis, GetStages, GetRoutes, GetIntegrations and GetAuthorizers output shapes and custom_fn apigateway_http_apis_detailed, 2026-09-23.",
@@ -672,6 +696,8 @@
       "scope": "regional",
       "source": { "custom_fn": "cognito_user_pools_described" },
       "why": "Enumerate Cognito user pools — managed user directories / OIDC issuers; the identity boundaries JWT authorizers validate against.",
+      "persist_configuration": false,
+      "persist_configuration_why": "Off: DescribeUserPool returns SmsConfiguration.ExternalId verbatim, the external id Cognito presents when assuming the SNS caller role. Ruling 2026-09-23 (Q40).",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore cognito-idp DescribeUserPool output shape (UserPoolType, EmailConfigurationType, SmsConfigurationType) and custom_fn cognito_user_pools_described, 2026-09-23. Users are never listed.",
@@ -779,6 +805,8 @@
       "scope": "regional",
       "source": { "custom_fn": "kms_keys_described" },
       "why": "Enumerate KMS keys (aliases + tags resolved) — the encryption-at-rest anchors that ENCRYPTED_WITH_KEY edges from buckets, log groups, queues, trails, and secrets resolve to.",
+      "persist_configuration": true,
+      "persist_configuration_why": "On: carries the posture and relationship detail the typed fields do not; no credential location is declared in sensitivity.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore kms DescribeKey output shape (KeyMetadata) and custom_fn kms_keys_described (adds alias names and tags); no key material is ever returned, 2026-09-23.",
@@ -821,6 +849,8 @@
       "scope": "regional",
       "source": { "custom_fn": "sqs_queues_described" },
       "why": "Enumerate SQS queues (attributes + tags resolved) — asynchronous message buffers such as work queues and dead-letter queues.",
+      "persist_configuration": true,
+      "persist_configuration_why": "On: carries the posture and relationship detail the typed fields do not; no credential location is declared in sensitivity.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore sqs GetQueueAttributes (AttributeNames=All; attribute enum) and custom_fn sqs_queues_described; messages are never received, 2026-09-23.",
@@ -871,6 +901,8 @@
       "scope": "regional",
       "source": { "custom_fn": "cloudtrail_trails_described" },
       "why": "Enumerate CloudTrail trails (home-region only; status + tags resolved) — the account's API audit pipeline and its delivery targets.",
+      "persist_configuration": true,
+      "persist_configuration_why": "On: carries the posture and relationship detail the typed fields do not; no credential location is declared in sensitivity.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore cloudtrail DescribeTrails (Trail) and GetTrailStatus output shapes and custom_fn cloudtrail_trails_described; bucket, topic, log group and KMS references, delivery status and tags, 2026-09-23. Log contents are never fetched.",
@@ -932,6 +964,8 @@
       "scope": "regional",
       "source": { "aws_op": "ListSecrets" },
       "why": "Enumerate Secrets Manager secrets — METADATA ONLY (name / ARN / rotation posture). The collector never calls GetSecretValue, so no secret material can enter the grid.",
+      "persist_configuration": true,
+      "persist_configuration_why": "On: carries the posture and relationship detail the typed fields do not; no credential location is declared in sensitivity.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore secretsmanager ListSecrets output shape (SecretListEntry): metadata only, no SecretString or SecretBinary member exists, 2026-09-23.",

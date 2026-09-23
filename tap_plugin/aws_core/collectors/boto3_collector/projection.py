@@ -10,8 +10,8 @@ Each raw item becomes a typed-node projection:
   a run failure (``req-aws-collector-field-projection-2``);
 - the **entire raw item** is retained verbatim in the in-memory
   ``configuration`` envelope (``req-aws-collector-field-projection-3``).
-  Whether that envelope is persisted is decided at emit time by
-  :data:`.batch.PERSIST_RAW_CONFIGURATION`, currently off;
+  Whether that envelope is persisted is decided at emit time by the
+  manifest entry's ``persist_configuration`` flag;
 - identity is deterministic from ``(entity_type, natural_key)`` so re-runs
   upsert in place (``req-aws-collector-identity``).
 

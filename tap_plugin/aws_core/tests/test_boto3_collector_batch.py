@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from tap_plugin.aws_core.collectors.boto3_collector import batch as batch_mod
+import pytest
 from tap_plugin.aws_core.collectors.boto3_collector.batch import (
     COLLECTION_FORMAT,
     assemble_batch,
@@ -35,36 +35,38 @@ def _projected(entity_type, key):
 
 class TestNodeEnvelope:
     def test_shape_and_payload(self):
-        env = node_envelope(_projected("aws_core__aws_lambda", "arn:fn"), {"region": "us-east-1"})
+        env = node_envelope(
+            _projected("aws_core__aws_lambda", "arn:fn"),
+            {"region": "us-east-1"},
+            persist_configuration=True,
+        )
         assert env["entity"] == {
             "entity_id": str(node_entity_id("aws_core__aws_lambda", "arn:fn")),
             "entity_type": "aws_core__aws_lambda",
             "name": "arn:fn",
             "dimensions": {"region": "us-east-1"},
         }
-        # node payload is the typed fields, unchanged; the raw configuration
-        # is not persisted while PERSIST_RAW_CONFIGURATION is off.
+        # node payload is typed fields + tags + the configuration envelope
         assert env["node"]["name"] == "arn:fn"
         assert env["node"]["arn"] == "arn:fn"
         assert env["node"]["tags"] == {}
-        assert env["node"]["configuration"] == {}
-
-    def test_raw_configuration_persistence_is_off_by_default(self):
-        assert batch_mod.PERSIST_RAW_CONFIGURATION is False
-
-    def test_switch_on_emits_the_lossless_configuration(self, monkeypatch):
-        monkeypatch.setattr(batch_mod, "PERSIST_RAW_CONFIGURATION", True)
-        node = _projected("aws_core__aws_lambda", "arn:fn")
-        env = node_envelope(node, {})
-        assert env["node"]["configuration"] == node.configuration
         assert env["node"]["configuration"]["_source"] == {"op": "Op", "why": "w"}
 
-    def test_switch_off_leaves_the_in_memory_envelope_intact(self):
+    def test_flag_off_emits_empty_configuration_and_same_typed_fields(self):
+        node = _projected("aws_core__aws_lambda", "arn:fn")
+        on = node_envelope(node, {}, persist_configuration=True)
+        off = node_envelope(node, {}, persist_configuration=False)
+        assert off["node"]["configuration"] == {}
+        assert {k: v for k, v in off["node"].items() if k != "configuration"} == {
+            k: v for k, v in on["node"].items() if k != "configuration"
+        }
         # Only the emit is cut: in-run consumers (hydrate-gap warnings, edge
         # derivation) still see the full envelope on the ProjectedNode.
-        node = _projected("aws_core__aws_lambda", "arn:fn")
-        node_envelope(node, {})
         assert node.configuration["_source"] == {"op": "Op", "why": "w"}
+
+    def test_flag_has_no_default(self):
+        with pytest.raises(TypeError):
+            node_envelope(_projected("aws_core__aws_lambda", "arn:fn"), {})  # type: ignore[call-arg]
 
 
 class TestAssembleBatch:
@@ -87,9 +89,9 @@ class TestAssembleBatch:
         assert len(doc["batches"]) == 1  # one batch per run
 
     def test_batch_entity_and_provenance(self):
-        n1 = node_envelope(_projected("aws_core__aws_lambda", "a"), {})
-        n2 = node_envelope(_projected("aws_core__aws_lambda", "b"), {})
-        n3 = node_envelope(_projected("aws_core__aws_iam_role", "r"), {})
+        n1 = node_envelope(_projected("aws_core__aws_lambda", "a"), {}, persist_configuration=True)
+        n2 = node_envelope(_projected("aws_core__aws_lambda", "b"), {}, persist_configuration=True)
+        n3 = node_envelope(_projected("aws_core__aws_iam_role", "r"), {}, persist_configuration=True)
         edge = {"entity": {"entity_type": "edge"}, "edge": {}}
         batch = self._doc([n1, n2, n3], [edge])["batches"][0]
 
@@ -113,14 +115,15 @@ class TestAssembleBatch:
         }
 
     def test_nodes_and_edges_pass_through(self):
-        n = node_envelope(_projected("aws_core__aws_s3_bucket", "bkt"), {})
+        n = node_envelope(_projected("aws_core__aws_s3_bucket", "bkt"), {}, persist_configuration=True)
         edge = {"entity": {"entity_type": "edge"}, "edge": {"edge_type": "X"}}
         batch = self._doc([n], [edge])["batches"][0]
         assert batch["nodes"] == [n]
         assert batch["edges"] == [edge]
 
     def test_no_deletion_or_tombstone_content(self):
-        batch = self._doc([node_envelope(_projected("aws_core__aws_lambda", "a"), {})], [])["batches"][0]
+        env = node_envelope(_projected("aws_core__aws_lambda", "a"), {}, persist_configuration=True)
+        batch = self._doc([env], [])["batches"][0]
         # Assembler injects no deleted_at / tombstone / implied-absence keys.
         assert "deleted_at" not in batch["batch_entity"]
         assert all("deleted_at" not in n["entity"] for n in batch["nodes"])

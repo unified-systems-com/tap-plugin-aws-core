@@ -27,6 +27,8 @@
         "items_path",
         "natural_key",
         "fields",
+        "persist_configuration",
+        "persist_configuration_why",
         "sensitivity"
       ],
       "properties": {
@@ -50,6 +52,15 @@
         "edges": {
           "type": "array",
           "items": { "$ref": "#/$defs/edge_rule" }
+        },
+        "persist_configuration": {
+          "description": "Whether the collector persists this entry's configuration envelope (the enumerate item, custom_fn and hydrate additions, and the engine-reserved _source/_hydrate keys) into the node's configuration field. False emits configuration {} for every node of this type; typed fields, tags and edges are derived from the in-memory envelope either way. Rulings 2026-09-23 (Q38, Q40): decided per entry, never globally; an entry with a credential sensitivity location defaults to false. See req-aws-collector-field-projection-7.",
+          "type": "boolean"
+        },
+        "persist_configuration_why": {
+          "description": "One line saying why persist_configuration has the value it has. Required and non-empty whichever way the flag is set: when false it names what is being kept out of storage; when true on an entry whose sensitivity lists a credential location it is where that known, accepted risk is acknowledged.",
+          "type": "string",
+          "minLength": 1
         },
         "sensitivity": { "$ref": "#/$defs/sensitivity" }
       }
@@ -155,7 +166,7 @@
       }
     },
     "sensitivity": {
-      "description": "Whether this entry's raw AWS response (the item the source yields, which becomes the node's configuration envelope) may carry sensitive values, and where. Required on every entry. Three states, and absence is none of them: an entry without this block fails schema validation, so 'nobody has looked' can never read as 'safe'. Recorded under the 2026-09-23 ruling that disabled raw-response persistence (req-aws-core-fields-1): each location listed here must be dealt with before PERSIST_RAW_CONFIGURATION is turned back on. Masking is not the remedy; the raw response is audit evidence.",
+      "description": "Whether this entry's raw AWS response (the item the source yields, which becomes the node's configuration envelope) may carry sensitive values, and where. Required on every entry. Three states, and absence is none of them: an entry without this block fails schema validation, so 'nobody has looked' can never read as 'safe'. Tracking only: it does not decide persistence (persist_configuration does). An entry that persists its configuration while listing a credential location here is a known, reviewed risk (req-aws-collector-manifest-6). Masking is not the remedy; the raw response is future audit evidence.",
       "type": "object",
       "additionalProperties": false,
       "required": [

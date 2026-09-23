@@ -355,7 +355,7 @@ def _collect_trial_envelope(ctx: TrialContext, entry: dict[str, Any], natural_ke
             if tag_slot is not None:
                 node.configuration.setdefault("_hydrate", {})["tags"] = tag_slot
                 node.configuration.setdefault("_hydrate_mapping", {})["tags"] = tag_mapping
-            return node_envelope(node, dimensions, tags)
+            return node_envelope(node, dimensions, tags, persist_configuration=entry["persist_configuration"])
         if time.monotonic() > deadline:
             pytest.fail(
                 f"{entry['entity_type']}: trial resource {natural_key!r} never appeared in the "

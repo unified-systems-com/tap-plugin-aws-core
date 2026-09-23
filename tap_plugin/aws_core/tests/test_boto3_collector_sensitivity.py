@@ -87,6 +87,23 @@ class TestSchema:
         entry["sensitivity"] = {"status": "reviewed_none_known"}
         assert self._errors(entry)
 
+    @pytest.mark.parametrize("key", ["persist_configuration", "persist_configuration_why"])
+    def test_missing_persist_decision_is_rejected(self, key):
+        entry = self._entry()
+        del entry[key]
+        assert any(key in m for m in self._errors(entry))
+
+    def test_empty_persist_reason_is_rejected(self):
+        entry = self._entry()
+        entry["persist_configuration"] = False
+        entry["persist_configuration_why"] = ""
+        assert self._errors(entry)
+
+    def test_non_boolean_persist_flag_is_rejected(self):
+        entry = self._entry()
+        entry["persist_configuration"] = "false"
+        assert self._errors(entry)
+
     def test_shipped_manifest_validates(self):
         assert list(_validator().iter_errors(_raw_manifest())) == []
 
@@ -211,3 +228,32 @@ def test_every_botocore_sensitive_member_is_declared(entry):
     declared = {loc["path"] for loc in entry["sensitivity"].get("locations", [])}
     missing = [p for p in _sensitive_member_paths(shape) if not _covered(p, declared)]
     assert missing == [], f"{entry['entity_type']}: botocore-sensitive members not declared: {missing}"
+
+
+# --- persist_configuration ↔ sensitivity ------------------------------------
+
+
+def _credential_paths(entry: dict) -> list[str]:
+    locs = entry.get("sensitivity", {}).get("locations", [])
+    return [loc["path"] for loc in locs if loc["category"] == "credential"]
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [e for e in _entries() if _credential_paths(e)],
+    ids=lambda e: e["entity_type"],
+)
+def test_credential_entries_are_off_or_acknowledged(entry):
+    # Default: an entry with a declared credential location does not persist
+    # its configuration (rulings 2026-09-23 Q38, Q40). Persisting one anyway
+    # is a known, reviewed risk (req-aws-collector-manifest-6), and then the
+    # reason must name every credential location. Either way the reason names
+    # them, so the decision is legible where it is made.
+    for path in _credential_paths(entry):
+        assert path.split("[]")[0].split(".")[0] in entry["persist_configuration_why"], path
+
+
+def test_shipped_credential_entries_are_all_off():
+    # As shipped, no entry persists a declared credential location.
+    persisted = [e["entity_type"] for e in _entries() if _credential_paths(e) and e["persist_configuration"]]
+    assert persisted == []
