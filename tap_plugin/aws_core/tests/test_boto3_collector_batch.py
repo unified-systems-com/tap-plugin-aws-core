@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from tap_plugin.aws_core.collectors.boto3_collector import batch as batch_mod
 from tap_plugin.aws_core.collectors.boto3_collector.batch import (
     COLLECTION_FORMAT,
     assemble_batch,
@@ -41,9 +42,29 @@ class TestNodeEnvelope:
             "name": "arn:fn",
             "dimensions": {"region": "us-east-1"},
         }
-        # node payload is typed fields + the lossless configuration blob
+        # node payload is the typed fields, unchanged; the raw configuration
+        # is not persisted while PERSIST_RAW_CONFIGURATION is off.
         assert env["node"]["name"] == "arn:fn"
+        assert env["node"]["arn"] == "arn:fn"
+        assert env["node"]["tags"] == {}
+        assert env["node"]["configuration"] == {}
+
+    def test_raw_configuration_persistence_is_off_by_default(self):
+        assert batch_mod.PERSIST_RAW_CONFIGURATION is False
+
+    def test_switch_on_emits_the_lossless_configuration(self, monkeypatch):
+        monkeypatch.setattr(batch_mod, "PERSIST_RAW_CONFIGURATION", True)
+        node = _projected("aws_core__aws_lambda", "arn:fn")
+        env = node_envelope(node, {})
+        assert env["node"]["configuration"] == node.configuration
         assert env["node"]["configuration"]["_source"] == {"op": "Op", "why": "w"}
+
+    def test_switch_off_leaves_the_in_memory_envelope_intact(self):
+        # Only the emit is cut: in-run consumers (hydrate-gap warnings, edge
+        # derivation) still see the full envelope on the ProjectedNode.
+        node = _projected("aws_core__aws_lambda", "arn:fn")
+        node_envelope(node, {})
+        assert node.configuration["_source"] == {"op": "Op", "why": "w"}
 
 
 class TestAssembleBatch:

@@ -1,0 +1,134 @@
+"""The collection manifest's per-entry ``sensitivity`` declaration.
+
+Spec: spec-aws-core-collector-v0.md (req-aws-collector-manifest-6) and
+spec-aws-core-v0.md (req-aws-core-fields-1). Every manifest entry must
+declare whether its raw AWS response may carry sensitive values. Three states
+are valid, ``unreviewed`` included; a missing declaration is not a state and
+must fail, so "nobody looked" can never read as "safe".
+"""
+
+from __future__ import annotations
+
+import copy
+import json
+
+import botocore.session
+import jsonschema
+import pytest
+from tap_plugin.aws_core.collectors.boto3_collector.manifest import MANIFEST_PATH, SCHEMA_PATH
+
+_STATES = {"unreviewed", "reviewed_none_known", "reviewed_may_contain"}
+
+
+def _raw_manifest() -> dict:
+    # Read the file directly rather than via load_manifest(), so this test does
+    # not depend on the schema it is also checking.
+    return json.loads(MANIFEST_PATH.read_text())
+
+
+def _validator() -> jsonschema.Draft202012Validator:
+    return jsonschema.Draft202012Validator(json.loads(SCHEMA_PATH.read_text()))
+
+
+def _entries() -> list[dict]:
+    return _raw_manifest()["entries"]
+
+
+@pytest.mark.parametrize("entry", _entries(), ids=lambda e: e["entity_type"])
+def test_every_manifest_entry_declares_sensitivity(entry):
+    assert "sensitivity" in entry, (
+        f"{entry['entity_type']} has no sensitivity declaration; declare "
+        '{"status": "unreviewed"} if nobody has reviewed its response shape yet'
+    )
+    declared = entry["sensitivity"]
+    assert declared["status"] in _STATES
+    if declared["status"] == "reviewed_may_contain":
+        assert declared["locations"], "reviewed_may_contain must name its locations"
+    else:
+        assert "locations" not in declared
+    if declared["status"] != "unreviewed":
+        assert declared.get("basis"), "a reviewed status must name its basis"
+
+
+class TestSchema:
+    def _entry(self) -> dict:
+        return copy.deepcopy(_entries()[0])
+
+    def _errors(self, entry: dict) -> list[str]:
+        doc = {"manifest_version": "0", "entries": [entry]}
+        return [e.message for e in _validator().iter_errors(doc)]
+
+    def test_missing_declaration_is_rejected(self):
+        entry = self._entry()
+        del entry["sensitivity"]
+        assert any("sensitivity" in m for m in self._errors(entry))
+
+    def test_unreviewed_is_a_valid_declaration(self):
+        entry = self._entry()
+        entry["sensitivity"] = {"status": "unreviewed"}
+        assert self._errors(entry) == []
+
+    def test_may_contain_without_locations_is_rejected(self):
+        entry = self._entry()
+        entry["sensitivity"] = {"status": "reviewed_may_contain", "basis": "read x"}
+        assert self._errors(entry)
+
+    def test_none_known_with_locations_is_rejected(self):
+        entry = self._entry()
+        entry["sensitivity"] = {
+            "status": "reviewed_none_known",
+            "basis": "read x",
+            "locations": [{"path": "A", "category": "credential", "reason": "r", "evidence": "reviewer_judgement"}],
+        }
+        assert self._errors(entry)
+
+    def test_reviewed_without_basis_is_rejected(self):
+        entry = self._entry()
+        entry["sensitivity"] = {"status": "reviewed_none_known"}
+        assert self._errors(entry)
+
+    def test_shipped_manifest_validates(self):
+        assert list(_validator().iter_errors(_raw_manifest())) == []
+
+
+# --- declared paths resolve against the real botocore response shapes -------
+#
+# For entries sourced by a plain aws_op, every declared location must name a
+# member that exists in botocore's output shape for that op, reached through
+# the entry's items_path. custom_fn entries build their own item and are
+# checked by reading the custom_fn; they are skipped here.
+
+
+def _step(shape, segment: str):
+    name, is_list = (segment[:-2], True) if segment.endswith("[]") else (segment, False)
+    if name:
+        assert shape.type_name == "structure", f"{name!r}: parent is {shape.type_name}"
+        assert name in shape.members, f"{name!r} not in {shape.name} members"
+        shape = shape.members[name]
+    if is_list:
+        assert shape.type_name == "list", f"{segment!r}: not a list"
+        shape = shape.member
+    return shape
+
+
+def _aws_op_locations():
+    for entry in _entries():
+        op = entry["source"].get("aws_op")
+        for loc in entry.get("sensitivity", {}).get("locations", []):
+            if op:
+                yield pytest.param(entry, loc, id=f"{entry['entity_type']}:{loc['path']}")
+
+
+@pytest.mark.parametrize(("entry", "location"), list(_aws_op_locations()))
+def test_declared_path_exists_in_botocore_shape(entry, location):
+    model = botocore.session.get_session().get_service_model(entry["service"])
+    shape = model.operation_model(entry["source"]["aws_op"]).output_shape
+    for segment in entry["items_path"].split("."):
+        shape = _step(shape, segment)
+    for segment in location["path"].split("."):
+        shape = _step(shape, segment)
+    if location["evidence"] == "botocore_sensitive":
+        flagged = shape.metadata.get("sensitive") or (
+            shape.type_name == "map" and shape.value.metadata.get("sensitive")
+        )
+        assert flagged, f"{location['path']} is not marked sensitive in botocore"

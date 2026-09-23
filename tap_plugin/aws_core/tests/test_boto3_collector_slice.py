@@ -12,9 +12,11 @@ custom_fn) and the hydrate seam are the next increment.
 
 from __future__ import annotations
 
+import json
 import uuid
 
 import pytest
+from tap_plugin.aws_core.collectors.boto3_collector import batch as batch_mod
 from tap_plugin.aws_core.collectors.boto3_collector import collector as collector_mod
 from tap_plugin.aws_core.collectors.boto3_collector import credentials as cred
 from tap_plugin.aws_core.collectors.boto3_collector.collector import Boto3Collector
@@ -33,6 +35,7 @@ _DIST_ARN = f"arn:aws:cloudfront::{_ACCOUNT}:distribution/E1ABCDEF"
 _LOG_GROUP = "/aws/lambda/sam-handler"  # == the Lambda's LoggingConfig.LogGroup
 _ZONE_ID = "/hostedzone/ZSLICE000001"
 _CF_DOMAIN = "d111abcdef.cloudfront.net"  # == _CANNED list_distributions DomainName
+_ENV_CANARY = "canary-db-password-5f1e"  # a Lambda env value that must never persist
 
 _CANNED = {
     "list_functions": {
@@ -47,6 +50,9 @@ _CANNED = {
                 "Role": _ROLE_ARN,
                 "LoggingConfig": {"LogGroup": "/aws/lambda/sam-handler"},
                 "LastModified": "2026-01-02T03:04:05.000+0000",
+                # Secret-shaped environment: the raw-response switch is off
+                # (PERSIST_RAW_CONFIGURATION), so none of this may be stored.
+                "Environment": {"Variables": {"DB_PASSWORD": _ENV_CANARY, "STAGE": "prod"}},
             }
         ]
     },
@@ -218,13 +224,17 @@ def test_canned_lambda_and_role_land_on_grid(_stub_aws):
     assert len(ledger_entries) == 1
     assert isinstance(ledger_entries[0]["message_data"]["calls"], list)
 
-    # The Lambda node landed, typed + lossless, by deterministic identity.
+    # The Lambda node landed, typed, by deterministic identity. The raw
+    # response is not persisted (PERSIST_RAW_CONFIGURATION is off), so
+    # configuration is empty while every typed field is still projected.
     fn = get_node(node_entity_id("aws_core__aws_lambda", _FN_ARN))
     assert fn.name == "sam-handler"
+    assert fn.function_arn == _FN_ARN
     assert fn.runtime == "python3.13"
+    assert fn.handler == "app.handler"
     assert fn.memory_size == 256
-    assert fn.configuration["FunctionArn"] == _FN_ARN  # lossless blob
-    assert fn.configuration["_source"]["op"] == "ListFunctions"
+    assert fn.timeout == 30
+    assert fn.configuration == {}
 
     # Lambda tags came via the RGTA path (joined by FunctionArn).
     assert fn.tags == {"Owner": "sam"}
@@ -373,3 +383,71 @@ def test_rejected_grift_batch_fails_loudly_not_silently(_stub_aws, monkeypatch):
     assert len(errs) == 1
     assert "duplicate_entity_id" in errs[0]["message"]
     assert "nothing landed" in errs[0]["message"]
+
+
+def _lambda_row_dump(fn) -> str:
+    """Every concrete column value on the Lambda row plus its history rows."""
+    values = [getattr(fn, f.attname) for f in fn._meta.concrete_fields]
+    values += [getattr(h, f.attname) for h in fn.history.all() for f in h._meta.concrete_fields]
+    return json.dumps(values, default=str)
+
+
+@pytest.mark.django_db
+def test_lambda_environment_variables_are_not_persisted(_stub_aws, monkeypatch):
+    """A collected Lambda with environment variables persists none of them.
+
+    Checked at both boundaries: the GRIFT document handed to submit_grift,
+    and the stored node row (with its history rows).
+    """
+    from tap_grid.services import get_node
+
+    submitted: list[str] = []
+    real_submit = Boto3Collector.submit_grift
+
+    def _capture(self, document, **kwargs):
+        submitted.append(json.dumps(document, default=str))
+        return real_submit(self, document, **kwargs)
+
+    monkeypatch.setattr(Boto3Collector, "submit_grift", _capture)
+    collector = Boto3Collector(CollectorConfig(collector_entity_id=uuid.uuid7(), collection_job_entity_id=uuid.uuid7()))
+    collector.run()
+    assert collector.results["error"] == []
+
+    assert len(submitted) == 1
+    assert _ENV_CANARY not in submitted[0]
+    assert "DB_PASSWORD" not in submitted[0]
+
+    fn = get_node(node_entity_id("aws_core__aws_lambda", _FN_ARN))
+    assert fn.configuration == {}
+    assert fn.runtime == "python3.13"  # typed projection unaffected
+    dump = _lambda_row_dump(fn)
+    assert _ENV_CANARY not in dump
+    assert "DB_PASSWORD" not in dump
+
+
+@pytest.mark.django_db
+def test_switch_on_restores_lossless_configuration_and_off_clears_it(_stub_aws, monkeypatch):
+    """The switch is the only thing that changed: on persists the raw
+    response as before; turning it off clears a previously stored one on
+    the next collection (the replace writes ``{}``)."""
+    from tap_grid.services import get_node
+
+    def _run():
+        collector = Boto3Collector(
+            CollectorConfig(collector_entity_id=uuid.uuid7(), collection_job_entity_id=uuid.uuid7())
+        )
+        collector.run()
+        assert collector.results["error"] == []
+
+    monkeypatch.setattr(batch_mod, "PERSIST_RAW_CONFIGURATION", True)
+    _run()
+    fn = get_node(node_entity_id("aws_core__aws_lambda", _FN_ARN))
+    assert fn.configuration["FunctionArn"] == _FN_ARN
+    assert fn.configuration["_source"]["op"] == "ListFunctions"
+    assert fn.configuration["Environment"]["Variables"]["DB_PASSWORD"] == _ENV_CANARY
+
+    monkeypatch.setattr(batch_mod, "PERSIST_RAW_CONFIGURATION", False)
+    _run()
+    fn = get_node(node_entity_id("aws_core__aws_lambda", _FN_ARN))
+    assert fn.configuration == {}
+    assert fn.runtime == "python3.13"

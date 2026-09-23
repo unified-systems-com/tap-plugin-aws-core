@@ -28,10 +28,47 @@ from .projection import ProjectedNode
 # aws_core's own format, parallel to the KSI collector's.
 COLLECTION_FORMAT = "tap.aws_core.collection-v0"
 
+# Whether a node's raw AWS response (``ProjectedNode.configuration``) is
+# persisted into the GRIFT node payload. Read at emit time by
+# :func:`node_envelope`; see :func:`persisted_configuration`.
+PERSIST_RAW_CONFIGURATION: bool = False
+"""Persist the raw boto3 response into each node's ``configuration``. Off.
+
+Ruling (George, owner, 2026-09-23): the ``configuration`` field exists to
+capture the raw boto3 responses that will later be submitted as audit
+evidence, so masking or redacting it would destroy that evidence. Instead,
+response collection is disabled entirely for now — it is not needed yet and
+holding it (Lambda environment variables, origin shared-secret headers,
+policy documents) is a liability. The collection manifest's per-entry
+``sensitivity`` declaration records where a raw response may carry sensitive
+values, so the work needed before this is switched back on is tracked.
+
+This is the single switch. With it off the collector still builds the full
+configuration envelope in memory — typed fields, tags, hydrate-gap warnings
+and edges are all derived exactly as before — and only the GRIFT emit writes
+``{}`` in its place. Turning it on restores lossless persistence unchanged.
+Spec: req-aws-core-fields-1 (spec-aws-core-v0.md) and
+req-aws-collector-field-projection-3 (spec-aws-core-collector-v0.md).
+"""
+
 # GRIFT document format version. A literal at the producer, exactly as the
 # KSI reference collector does (it is the document's format version, not the
 # collector's to derive).
 _GRIFT_VERSION = "0"
+
+
+def persisted_configuration(node: ProjectedNode) -> dict[str, Any]:
+    """The ``configuration`` value to persist for ``node``.
+
+    The in-memory envelope when :data:`PERSIST_RAW_CONFIGURATION` is on,
+    otherwise ``{}``. ``{}`` is sent explicitly rather than omitted so the
+    replace on import sets the column deterministically: a resource collected
+    before the switch was turned off has its stored raw response replaced
+    with ``{}`` the next time it is collected.
+    """
+    if PERSIST_RAW_CONFIGURATION:
+        return node.configuration
+    return {}
 
 
 def node_envelope(
@@ -43,8 +80,9 @@ def node_envelope(
 
     The ``node`` payload is the projected typed fields, the canonical
     ``tags`` map (``req-aws-collector-tags``; ``{}`` when untagged — the
-    correct answer, never omitted), and the lossless ``configuration``
-    blob; the service layer validates it on import.
+    correct answer, never omitted), and ``configuration`` as decided by
+    :func:`persisted_configuration` (``{}`` while raw-response persistence
+    is switched off); the service layer validates it on import.
     """
     return {
         "entity": {
@@ -56,7 +94,7 @@ def node_envelope(
         "node": {
             **node.fields,
             "tags": tags or {},
-            "configuration": node.configuration,
+            "configuration": persisted_configuration(node),
         },
     }
 

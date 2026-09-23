@@ -30,7 +30,7 @@ class AwsCoreConfig(TapPluginConfig):
             description=(
                 "Collects a single AWS account into the grid via boto3, "
                 "driven entirely by the aws_core resource manifest: typed "
-                "nodes, a lossless configuration blob, and declarative edges, "
-                "submitted as one GRIFT batch per run."
+                "nodes and declarative edges, submitted as one GRIFT batch "
+                "per run. Raw AWS responses are not persisted."
             ),
         )

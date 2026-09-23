@@ -14,7 +14,9 @@ does not churn):
 2. Values are normalized deterministically: ``datetime``/``date`` ->
    ISO 8601 UTC (``...Z``); the engine serializes with sorted keys.
 
-The node ``configuration`` is the enumerate item at its root plus the
+Everything here builds the in-memory envelope; whether it is persisted is
+decided at emit time by :data:`.batch.PERSIST_RAW_CONFIGURATION`, currently
+off. The node ``configuration`` is the enumerate item at its root plus the
 engine-reserved ``_source`` ({op, why}); ``_hydrate`` / ``_hydrate_mapping``
 are added by the fan-out seam (later). ``_source`` is present on every node
 so even a single-call object is self-describing without the manifest.

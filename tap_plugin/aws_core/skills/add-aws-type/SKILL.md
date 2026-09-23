@@ -29,7 +29,15 @@ Add the entry: `entity_type` (`aws_core__aws_<type>`), `service` (boto3 service
 name), `scope` (`regional` | `global`), `source`, `why` (one honest sentence —
 what relationship or risk does collecting this illuminate?), `items_path`,
 `natural_key` (an ARN or the service's canonical id — deterministic identity
-depends on it), `fields` (model field → jsonpath), `edges`.
+depends on it), `fields` (model field → jsonpath), `edges`, `sensitivity`.
+
+- `sensitivity` is required (`req-aws-collector-manifest-6`): read the botocore
+  output shape for every call the entry makes and declare `reviewed_may_contain`
+  with `{path, category, reason, evidence}` locations, or `reviewed_none_known`
+  with a `basis`. If you have not reviewed it, declare `{"status": "unreviewed"}`
+  — never guess, and never omit it. Raw responses are not persisted today
+  (`PERSIST_RAW_CONFIGURATION`, ruling 2026-09-23); this list is the work to do
+  before they are.
 
 - `source`: prefer a declared `aws_op` (one list call, engine-paginated). Use a
   `custom_fn` in `customfns.py` ONLY when one logical resource needs multiple
@@ -76,8 +84,9 @@ collection for any account with ≥1 secret. **Every collected model MUST declar
 - membership in `tests/test_aws_core_tags_field.py::_COLLECTED_MODELS` (the
   always-on guard for exactly this).
 
-Same discipline for `configuration` (the lossless raw blob): JSONField + both
-schema entries.
+Same discipline for `configuration` (the raw-response blob; the collector
+writes `{}` while `PERSIST_RAW_CONFIGURATION` is off): JSONField + both schema
+entries.
 
 ## Step 3 — Schemas + migration
 
