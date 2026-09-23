@@ -40,7 +40,9 @@ class Vpc(BaseModel):
         "is_default": {"validation": "jsonschema", "schema": {"type": "boolean"}},
         "configuration": {"validation": "jsonschema", "schema": {"type": "object"}},
     }
-    CREATE_REQUIRED: ClassVar[list[str]] = ["vpc_id"]
+    # vpc_id is NOT required at create: a designed vpc (dcom=design) exists before AWS mints it.
+    # Blank (the field default) means not observed. A collected vpc always carries it.
+    CREATE_REQUIRED: ClassVar[list[str]] = []
 
     name = models.CharField(max_length=255, blank=True, default="")
     vpc_id = models.CharField(max_length=64, blank=True, default="", db_index=True)

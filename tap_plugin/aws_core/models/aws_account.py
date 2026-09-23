@@ -25,7 +25,7 @@ class AwsAccount(BaseModel):
 
     FIELD_CRUD_SCHEMA: ClassVar[dict[str, Any]] = {
         "name": {"type": "string", "minLength": 1},
-        "account_id": {"type": "string", "minLength": 1},
+        "account_id": {"type": "string"},
         "email": {"type": "string"},
         "status": {"type": "string"},
         "configuration": {"type": "object"},
@@ -34,13 +34,17 @@ class AwsAccount(BaseModel):
 
     FIELD_VALIDATION_SCHEMA: ClassVar[dict[str, Any]] = {
         "name": {"validation": "jsonschema", "schema": {"type": "string", "minLength": 1}},
-        "account_id": {"validation": "jsonschema", "schema": {"type": "string", "minLength": 1}},
+        "account_id": {"validation": "jsonschema", "schema": {"type": "string"}},
         "email": {"validation": "jsonschema", "schema": {"type": "string"}},
         "status": {"validation": "jsonschema", "schema": {"type": "string"}},
         "configuration": {"validation": "jsonschema", "schema": {"type": "object"}},
         "tags": {"validation": "jsonschema", "schema": {"type": "object"}},
     }
-    CREATE_REQUIRED: ClassVar[list[str]] = ["name", "account_id"]
+    # account_id is NOT required at create: a designed account (dcom=design) exists on the grid
+    # before AWS has minted it, so its id is not observed yet. Blank (the field default) means
+    # not observed, never "has no id"; the record validates whole, so it cannot carry a minLength.
+    # A collected account always carries the id.
+    CREATE_REQUIRED: ClassVar[list[str]] = ["name"]
 
     name = models.CharField(max_length=255, blank=True, default="")
     account_id = models.CharField(max_length=64, blank=True, default="", db_index=True)
