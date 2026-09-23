@@ -216,6 +216,19 @@ output shape for that op, and checks that every `botocore_sensitive` location
 really carries the trait. `custom_fn` entries build their own items, so their
 paths are checked by reading the `custom_fn`.
 
+Tag values are operator-set arbitrary strings. Where they ride inside the
+envelope — the `field` lane's `from` path, or `_hydrate.tags` for the `service`
+lane — they are declared as `customer_content`, and a test enforces it for every
+entry on those lanes. The `rgta` lane's tags come from the per-run sweep, not the
+item. The canonical `tags` model field is persisted independently
+([Resource Tags](#resource-tags)) and is not governed by
+`PERSIST_RAW_CONFIGURATION`; that is outside the 2026-09-23 ruling.
+
+The switch is deliberately not gated on these declarations. Turning it on is a
+reviewed code change, and the remedy for each location (drop, encrypt, move to a
+secret store) is the decision the ruling defers to "once we begin recording";
+a gate written now would pre-empt it.
+
 #### Acceptance Criteria
 
 | ACID | Title | Status | Description | Notes |

@@ -96,7 +96,9 @@ class TestSchema:
 # For entries sourced by a plain aws_op, every declared location must name a
 # member that exists in botocore's output shape for that op, reached through
 # the entry's items_path. custom_fn entries build their own item and are
-# checked by reading the custom_fn; they are skipped here.
+# checked by reading the custom_fn; they are skipped here, as are paths under
+# an engine-added ``_`` key (for example ``_hydrate.tags``), which is not part
+# of the AWS payload.
 
 
 def _step(shape, segment: str):
@@ -115,7 +117,7 @@ def _aws_op_locations():
     for entry in _entries():
         op = entry["source"].get("aws_op")
         for loc in entry.get("sensitivity", {}).get("locations", []):
-            if op:
+            if op and not loc["path"].startswith("_"):
                 yield pytest.param(entry, loc, id=f"{entry['entity_type']}:{loc['path']}")
 
 
@@ -132,3 +134,31 @@ def test_declared_path_exists_in_botocore_shape(entry, location):
             shape.type_name == "map" and shape.value.metadata.get("sensitive")
         )
         assert flagged, f"{location['path']} is not marked sensitive in botocore"
+
+
+def _tag_carrier(entry: dict) -> str | None:
+    """Where an entry's tag values sit inside the configuration envelope.
+
+    field lane: the item path the tags are read from. service lane: the
+    collector stores the tag call's response at ``_hydrate.tags``. rgta lane:
+    tags come from the per-run sweep, not the item, so nothing is in the
+    envelope.
+    """
+    block = entry.get("tags") or {}
+    if block.get("source") == "field":
+        return block["from"]
+    if block.get("source") == "service":
+        return "_hydrate.tags"
+    return None
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [e for e in _entries() if _tag_carrier(e)],
+    ids=lambda e: e["entity_type"],
+)
+def test_tag_values_in_the_envelope_are_declared(entry):
+    # Tag values are operator-set arbitrary strings; where they ride inside
+    # the raw envelope they must be on the declared work list.
+    paths = {loc["path"] for loc in entry.get("sensitivity", {}).get("locations", [])}
+    assert _tag_carrier(entry) in paths

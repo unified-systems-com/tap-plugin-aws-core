@@ -127,6 +127,12 @@
             "category": "free_text",
             "reason": "Operator-authored description.",
             "evidence": "reviewer_judgement"
+          },
+          {
+            "path": "_hydrate.tags",
+            "category": "customer_content",
+            "reason": "ListRoleTags response placed in the envelope by the service tag lane. Operator-set tag values: arbitrary strings AWS does not constrain. The canonical tags field is persisted separately, by design (req-aws-collector-tags).",
+            "evidence": "reviewer_judgement"
           }
         ]
       },
@@ -299,6 +305,12 @@
             "category": "free_text",
             "reason": "Each OAC's OriginAccessControlConfig.Description is operator-authored text.",
             "evidence": "reviewer_judgement"
+          },
+          {
+            "path": "_hydrate.tags",
+            "category": "customer_content",
+            "reason": "ListTagsForResource response placed in the envelope by the service tag lane. Operator-set tag values: arbitrary strings AWS does not constrain. The canonical tags field is persisted separately, by design (req-aws-collector-tags).",
+            "evidence": "reviewer_judgement"
           }
         ]
       },
@@ -442,6 +454,12 @@
             "category": "free_text",
             "reason": "Description supplied by the service that created the zone.",
             "evidence": "reviewer_judgement"
+          },
+          {
+            "path": "_hydrate.tags",
+            "category": "customer_content",
+            "reason": "ListTagsForResource response placed in the envelope by the service tag lane. Operator-set tag values: arbitrary strings AWS does not constrain. The canonical tags field is persisted separately, by design (req-aws-collector-tags).",
+            "evidence": "reviewer_judgement"
           }
         ]
       },
@@ -506,8 +524,22 @@
       "source": { "custom_fn": "iam_oidc_providers_described" },
       "why": "Enumerate IAM OIDC identity providers — federated machine identities (e.g. GitHub Actions) that trust this account.",
       "sensitivity": {
-        "status": "reviewed_none_known",
-        "basis": "Read botocore iam GetOpenIDConnectProvider output shape (Url, ClientIDList, ThumbprintList, CreateDate, Tags); OIDC client ids are public audience values, not client secrets, and thumbprints are of public CA certificates, 2026-09-23."
+        "status": "reviewed_may_contain",
+        "basis": "Read botocore iam GetOpenIDConnectProvider output shape (Url, ClientIDList, ThumbprintList, CreateDate, Tags); OIDC client ids are public audience values, not client secrets, and thumbprints are of public CA certificates, 2026-09-23.",
+        "locations": [
+          {
+            "path": "Tags",
+            "category": "customer_content",
+            "reason": "GetOpenIDConnectProvider returns tags inline. Operator-set tag values: arbitrary strings AWS does not constrain. The canonical tags field is persisted separately, by design (req-aws-collector-tags).",
+            "evidence": "reviewer_judgement"
+          },
+          {
+            "path": "_hydrate.tags",
+            "category": "customer_content",
+            "reason": "ListOpenIDConnectProviderTags response placed in the envelope by the service tag lane. Operator-set tag values: arbitrary strings AWS does not constrain. The canonical tags field is persisted separately, by design (req-aws-collector-tags).",
+            "evidence": "reviewer_judgement"
+          }
+        ]
       },
       "items_path": "[]",
       "natural_key": "ProviderArn",
@@ -586,6 +618,18 @@
             "path": "_integrations[].Description",
             "category": "free_text",
             "reason": "Operator-authored integration description.",
+            "evidence": "reviewer_judgement"
+          },
+          {
+            "path": "Tags",
+            "category": "customer_content",
+            "reason": "Operator-set tag values: arbitrary strings AWS does not constrain. The canonical tags field is persisted separately, by design (req-aws-collector-tags).",
+            "evidence": "reviewer_judgement"
+          },
+          {
+            "path": "_stages[].Tags",
+            "category": "customer_content",
+            "reason": "Stage tags. Operator-set tag values: arbitrary strings AWS does not constrain. The canonical tags field is persisted separately, by design (req-aws-collector-tags).",
             "evidence": "reviewer_judgement"
           }
         ]
@@ -703,6 +747,12 @@
             "category": "diagnostic",
             "reason": "Service-composed SMS configuration error text.",
             "evidence": "reviewer_judgement"
+          },
+          {
+            "path": "UserPoolTags",
+            "category": "customer_content",
+            "reason": "Operator-set tag values: arbitrary strings AWS does not constrain. The canonical tags field is persisted separately, by design (req-aws-collector-tags).",
+            "evidence": "reviewer_judgement"
           }
         ]
       },
@@ -737,6 +787,12 @@
             "path": "Description",
             "category": "free_text",
             "reason": "Operator-authored key description.",
+            "evidence": "reviewer_judgement"
+          },
+          {
+            "path": "_tags",
+            "category": "customer_content",
+            "reason": "Operator-set tag values: arbitrary strings AWS does not constrain. The canonical tags field is persisted separately, by design (req-aws-collector-tags).",
             "evidence": "reviewer_judgement"
           }
         ]
@@ -774,6 +830,12 @@
             "category": "access_policy",
             "reason": "Queue access policy: principals and source ARNs allowed to send or receive.",
             "evidence": "reviewer_judgement"
+          },
+          {
+            "path": "_tags",
+            "category": "customer_content",
+            "reason": "Operator-set tag values: arbitrary strings AWS does not constrain. The canonical tags field is persisted separately, by design (req-aws-collector-tags).",
+            "evidence": "reviewer_judgement"
           }
         ]
       },
@@ -810,8 +872,16 @@
       "source": { "custom_fn": "cloudtrail_trails_described" },
       "why": "Enumerate CloudTrail trails (home-region only; status + tags resolved) — the account's API audit pipeline and its delivery targets.",
       "sensitivity": {
-        "status": "reviewed_none_known",
-        "basis": "Read botocore cloudtrail DescribeTrails (Trail) and GetTrailStatus output shapes and custom_fn cloudtrail_trails_described; bucket, topic, log group and KMS references plus delivery status only, 2026-09-23. Log contents are never fetched."
+        "status": "reviewed_may_contain",
+        "basis": "Read botocore cloudtrail DescribeTrails (Trail) and GetTrailStatus output shapes and custom_fn cloudtrail_trails_described; bucket, topic, log group and KMS references, delivery status and tags, 2026-09-23. Log contents are never fetched.",
+        "locations": [
+          {
+            "path": "_tags",
+            "category": "customer_content",
+            "reason": "Operator-set tag values: arbitrary strings AWS does not constrain. The canonical tags field is persisted separately, by design (req-aws-collector-tags).",
+            "evidence": "reviewer_judgement"
+          }
+        ]
       },
       "items_path": "[]",
       "natural_key": "TrailARN",
@@ -870,6 +940,12 @@
             "path": "Description",
             "category": "free_text",
             "reason": "Operator-authored secret description; operators sometimes paste hints or values into it.",
+            "evidence": "reviewer_judgement"
+          },
+          {
+            "path": "Tags",
+            "category": "customer_content",
+            "reason": "Operator-set tag values: arbitrary strings AWS does not constrain. The canonical tags field is persisted separately, by design (req-aws-collector-tags).",
             "evidence": "reviewer_judgement"
           }
         ]
