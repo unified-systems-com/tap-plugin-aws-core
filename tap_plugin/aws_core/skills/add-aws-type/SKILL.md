@@ -52,7 +52,9 @@ enumerate op, every `hydrate` op, every call inside the `custom_fn`):
    locations (paths in the manifest dialect, rooted at the yielded item), or
    `reviewed_none_known` — both with a `basis` naming what you read and the date.
 4. If you have not done this, declare `{"status": "unreviewed"}`. That is an
-   honest, allowed state. Never guess, and never omit the block.
+   honest, allowed state, and it forces `"persist_configuration": false` (the
+   schema rejects an unreviewed entry that persists; ruling Q43). Never guess,
+   and never omit the block.
 
 For an `aws_op` entry, `test_boto3_collector_sensitivity.py` fails if any
 botocore-`sensitive` member is left undeclared, or if a declared path does not
@@ -61,6 +63,8 @@ exist in the shape. A `custom_fn` entry is checked only by your reading.
 **`persist_configuration` + `persist_configuration_why` — whether the node's
 `configuration` is stored** (`req-aws-collector-field-projection-7`).
 
+- If `sensitivity.status` is `unreviewed`, the flag is `false`. The schema
+  rejects `true` (`req-aws-collector-manifest-7`, ruling Q43).
 - If `sensitivity` lists any `credential` location, set
   `"persist_configuration": false`, and make the reason name the location:
   `"Off: <Op> returns <path> verbatim, and <why that is a credential>."`
@@ -72,6 +76,32 @@ exist in the shape. A `custom_fn` entry is checked only by your reading.
 - `false` stores `configuration: {}`. Before choosing it, confirm that nothing
   the type needs is read back from the stored blob: typed fields, tags and edges
   are always derived from the in-memory envelope, so they are unaffected.
+
+**STOP and ask the requester before choosing the flag** (ruling Q43), when
+adding or updating an entry and any of these is true:
+
+- (a) the status would be `unreviewed`;
+- (b) `sensitivity` lists any `credential` location;
+- (c) you want `persist_configuration: true` and `sensitivity` lists any
+  `reviewed_may_contain` location, of any category.
+
+Do not pick the flag yourself in these cases, even where the rules above
+already name a default. For (a) the flag is `false`, so the question is whether
+to review the shape now or ship the entry unreviewed and not stored. Send the
+person who asked for the work:
+
+1. the entity type and the calls it makes (the enumerate op, each hydrate op,
+   and the `custom_fn`);
+2. the sensitivity status, and each location as `path`, `category`, `reason`
+   and `evidence`, or for (a) why the review was not done;
+3. the flag you propose and the `persist_configuration_why` you would write,
+   including which typed fields, tags and edges still carry the facts the type
+   needs if the flag is `false`.
+
+Then wait for their answer and write what they decide. Record the decision in
+`persist_configuration_why` ("Ruling <date> (<who>): ..."). If you are a
+subagent, hand the question back to your caller, who then asks the user. A
+subagent must not answer it.
 
 - `source`: prefer a declared `aws_op` (one list call, engine-paginated). Use a
   `custom_fn` in `customfns.py` ONLY when one logical resource needs multiple
