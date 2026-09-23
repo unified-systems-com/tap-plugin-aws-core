@@ -1112,7 +1112,8 @@ not).
   CloudQuery single-helper pattern is the model. Raw-retention follows the
   `tags`/`tags_raw` discipline but is path-aware: the variable-shaped
   **side-quest** path retains the raw response losslessly via the
-  `_hydrate` envelope (with the `ok|absent|denied|error` slot status);
+  `_hydrate` envelope (with the `ok|absent|denied|error` slot status),
+  stored when the entry's `persist_configuration` is true;
   the **RGTA** path needs no separate raw store because RGTA's
   `list_kv`↔`map` is information-preserving (AWS tag keys are unique per
   resource, values are strings) — the canonical `{str:str}` map is itself
