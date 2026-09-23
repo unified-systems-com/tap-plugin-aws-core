@@ -98,7 +98,10 @@ person who asked for the work:
    including which typed fields, tags and edges still carry the facts the type
    needs if the flag is `false`.
 
-Then wait for their answer and write what they decide. Record the decision in
+Then wait for their answer and write what they decide. The requester can
+always keep an entry off. They cannot on their own authorize storing a
+`credential` location: that stays the owner's ruling (above), and
+`test_shipped_credential_entries_are_all_off` fails until the owner changes it. Record the decision in
 `persist_configuration_why` ("Ruling <date> (<who>): ..."). If you are a
 subagent, hand the question back to your caller, who then asks the user. A
 subagent must not answer it.
