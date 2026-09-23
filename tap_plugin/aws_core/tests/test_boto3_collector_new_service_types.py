@@ -105,7 +105,14 @@ class _FakeApiGw:
     def get_routes(self, **_kw):
         if self._routes_fail:
             raise _denied("GetRoutes")
-        return {"Items": [{"RouteKey": "POST /verify"}]}
+        return {
+            "Items": [
+                {"RouteKey": "POST /verify", "AuthorizationType": "JWT", "AuthorizerId": "auth1"},
+                {"RouteKey": "POST /hook", "AuthorizationType": "CUSTOM", "AuthorizerId": "auth2"},
+                {"RouteKey": "GET /health", "AuthorizationType": "NONE"},
+                {"RouteKey": "$default"},  # AuthorizationType omitted: AWS default NONE
+            ]
+        }
 
     def get_integrations(self, **_kw):
         return {
@@ -140,6 +147,23 @@ class TestApiGatewayHttpApisDetailed:
         (api,) = self._collect(_FakeApiGw(routes_fail=True))
         assert api["_routes"] == []
         assert api["_integration_lambda_arns"] == [_LAMBDA_ARN]
+
+    def test_route_authorization_types_per_route(self):
+        # Ruling 2026-09-23 Q44: which routes require an authorizer, and of
+        # which type, survives configuration being off as a typed field.
+        (api,) = self._collect(_FakeApiGw())
+        assert api["_route_authorization_types"] == {
+            "POST /verify": "JWT",
+            "POST /hook": "CUSTOM",
+            "GET /health": "NONE",
+            "$default": "NONE",
+        }
+
+    def test_denied_routes_listing_is_unobserved_not_open(self):
+        # A failed GetRoutes must not read as "no routes" (and so "nothing
+        # open"): the field is None, which the grid reads as unobserved.
+        (api,) = self._collect(_FakeApiGw(routes_fail=True))
+        assert api["_route_authorization_types"] is None
 
 
 class _FakeCognito:

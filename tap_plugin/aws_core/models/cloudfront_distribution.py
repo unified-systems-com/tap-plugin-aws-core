@@ -36,6 +36,7 @@ class CloudfrontDistribution(BaseModel):
         "domain_name": {"type": "string"},
         "status": {"type": "string"},
         "enabled": {"type": "boolean"},
+        "origin_access": {"type": "object", "additionalProperties": {"type": "string", "enum": ["oac", "oai", "none"]}},
         "configuration": {"type": "object"},
         "tags": {"type": "object"},
     }
@@ -46,6 +47,7 @@ class CloudfrontDistribution(BaseModel):
         "domain_name": {"validation": "jsonschema", "schema": {"type": "string"}},
         "status": {"validation": "jsonschema", "schema": {"type": "string"}},
         "enabled": {"validation": "jsonschema", "schema": {"type": "boolean"}},
+        "origin_access": {"validation": "jsonschema", "schema": {"type": "object", "additionalProperties": {"type": "string", "enum": ["oac", "oai", "none"]}}},
         "configuration": {"validation": "jsonschema", "schema": {"type": "object"}},
         "tags": {"validation": "jsonschema", "schema": {"type": "object"}},
     }
@@ -56,6 +58,11 @@ class CloudfrontDistribution(BaseModel):
     domain_name = models.CharField(max_length=255, blank=True, default="", db_index=True)
     status = models.CharField(max_length=64, blank=True, default="")
     enabled = models.BooleanField(default=False)
+    # {origin Id: "oac" | "oai" | "none"}: how CloudFront authenticates to each
+    # origin, derived from the ListDistributions origin by the custom_fn
+    # (ruling 2026-09-23 Q44: kept as a typed field because configuration is
+    # not stored for this type). "none" means CloudFront sends no credential.
+    origin_access = models.JSONField(default=dict, blank=True)
     configuration = models.JSONField(default=dict, blank=True)
     tags = models.JSONField(default=dict, blank=True)
 

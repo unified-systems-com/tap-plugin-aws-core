@@ -30,6 +30,8 @@ class LambdaFunction(BaseModel):
         "handler": {"type": "string"},
         "memory_size": {"type": ["integer", "null"]},
         "timeout": {"type": ["integer", "null"]},
+        "vpc_subnet_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "vpc_security_group_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
         "configuration": {"type": "object"},
         "tags": {"type": "object"},
     }
@@ -41,6 +43,8 @@ class LambdaFunction(BaseModel):
         "handler": {"validation": "jsonschema", "schema": {"type": "string"}},
         "memory_size": {"validation": "jsonschema", "schema": {"type": ["integer", "null"]}},
         "timeout": {"validation": "jsonschema", "schema": {"type": ["integer", "null"]}},
+        "vpc_subnet_ids": {"validation": "jsonschema", "schema": {"type": "array", "items": {"type": "string", "minLength": 1}}},
+        "vpc_security_group_ids": {"validation": "jsonschema", "schema": {"type": "array", "items": {"type": "string", "minLength": 1}}},
         "configuration": {"validation": "jsonschema", "schema": {"type": "object"}},
         "tags": {"validation": "jsonschema", "schema": {"type": "object"}},
     }
@@ -52,6 +56,11 @@ class LambdaFunction(BaseModel):
     handler = models.CharField(max_length=255, blank=True, default="")
     memory_size = models.IntegerField(blank=True, null=True)
     timeout = models.IntegerField(blank=True, null=True)
+    # VPC attachment, from ListFunctions VpcConfig.SubnetIds / SecurityGroupIds
+    # (ruling 2026-09-23 Q44: kept as typed fields because configuration is not
+    # stored for this type). Both empty means the function is not in a VPC.
+    vpc_subnet_ids = models.JSONField(default=list, blank=True)
+    vpc_security_group_ids = models.JSONField(default=list, blank=True)
     configuration = models.JSONField(default=dict, blank=True)
     tags = models.JSONField(default=dict, blank=True)
 

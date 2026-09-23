@@ -33,6 +33,7 @@ class ApiGatewayHttpApi(BaseModel):
         "api_arn": {"type": "string"},
         "api_endpoint": {"type": "string"},
         "protocol_type": {"type": "string"},
+        "route_authorization_types": {"type": ["object", "null"], "additionalProperties": {"type": "string", "minLength": 1}},
         "tags": {"type": "object"},
         "configuration": {"type": "object"},
     }
@@ -43,6 +44,7 @@ class ApiGatewayHttpApi(BaseModel):
         "api_arn": {"validation": "jsonschema", "schema": {"type": "string"}},
         "api_endpoint": {"validation": "jsonschema", "schema": {"type": "string"}},
         "protocol_type": {"validation": "jsonschema", "schema": {"type": "string"}},
+        "route_authorization_types": {"validation": "jsonschema", "schema": {"type": ["object", "null"], "additionalProperties": {"type": "string", "minLength": 1}}},
         "tags": {"validation": "jsonschema", "schema": {"type": "object"}},
         "configuration": {"validation": "jsonschema", "schema": {"type": "object"}},
     }
@@ -53,6 +55,11 @@ class ApiGatewayHttpApi(BaseModel):
     api_arn = models.CharField(max_length=512, blank=True, default="")
     api_endpoint = models.CharField(max_length=512, blank=True, default="")
     protocol_type = models.CharField(max_length=32, blank=True, default="")
+    # {RouteKey: AuthorizationType} from GetRoutes: NONE, AWS_IAM, JWT, or
+    # CUSTOM (a Lambda authorizer). Null when GetRoutes failed, so a denied
+    # listing never reads as "no open routes". Ruling 2026-09-23 Q44: kept as a
+    # typed field because configuration is not stored for this type.
+    route_authorization_types = models.JSONField(null=True, blank=True, default=None)
     tags = models.JSONField(default=dict, blank=True)
     configuration = models.JSONField(default=dict, blank=True)
 

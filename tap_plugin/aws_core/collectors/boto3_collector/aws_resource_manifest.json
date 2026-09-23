@@ -41,7 +41,7 @@
       "source": { "aws_op": "ListFunctions" },
       "why": "Enumerate Lambda functions — serverless compute and a common runtime/compliance surface.",
       "persist_configuration": false,
-      "persist_configuration_why": "Off: ListFunctions returns Environment.Variables verbatim, and Lambda environment variables routinely hold credentials (API keys, database passwords, tokens). Ruling 2026-09-23 (Q38).",
+      "persist_configuration_why": "Off: ListFunctions returns Environment.Variables verbatim, and Lambda environment variables routinely hold credentials (API keys, database passwords, tokens). Ruling 2026-09-23 (Q38). VPC attachment is kept as typed fields vpc_subnet_ids and vpc_security_group_ids (Q44).",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore lambda ListFunctions output shape (FunctionConfiguration), 2026-09-23.",
@@ -86,7 +86,9 @@
         "runtime": "Runtime",
         "handler": "Handler",
         "memory_size": "MemorySize",
-        "timeout": "Timeout"
+        "timeout": "Timeout",
+        "vpc_subnet_ids": "VpcConfig.SubnetIds[]",
+        "vpc_security_group_ids": "VpcConfig.SecurityGroupIds[]"
       },
       "tags": {
         "source": "rgta",
@@ -297,7 +299,7 @@
       "source": { "custom_fn": "cloudfront_distributions_with_oac" },
       "why": "Enumerate CloudFront distributions — CDN/edge entry points and their origins. Each origin's Origin Access Control (OAC) is resolved and embedded in configuration.",
       "persist_configuration": false,
-      "persist_configuration_why": "Off: ListDistributions returns Origins.Items[].CustomHeaders.Items[].HeaderValue verbatim, and custom origin headers are commonly a shared secret between CloudFront and the origin. Ruling 2026-09-23 (Q40).",
+      "persist_configuration_why": "Off: ListDistributions returns Origins.Items[].CustomHeaders.Items[].HeaderValue verbatim, and custom origin headers are commonly a shared secret between CloudFront and the origin. Ruling 2026-09-23 (Q40). Each origin's access mode (OAC, OAI or none) is kept as the typed field origin_access (Q44).",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore cloudfront ListDistributions (DistributionSummary) and GetOriginAccessControl output shapes and custom_fn cloudfront_distributions_with_oac, 2026-09-23.",
@@ -335,7 +337,8 @@
         "distribution_arn": "ARN",
         "domain_name": "DomainName",
         "status": "Status",
-        "enabled": "Enabled"
+        "enabled": "Enabled",
+        "origin_access": "_origin_access"
       },
       "tags": {
         "source": "service",
@@ -591,7 +594,7 @@
       "source": { "custom_fn": "apigateway_http_apis_detailed" },
       "why": "Enumerate API Gateway v2 HTTP APIs — managed HTTP front doors — with stages, routes, integrations, and authorizers resolved so API -> Lambda and API -> Cognito relationships land as edges.",
       "persist_configuration": false,
-      "persist_configuration_why": "Off: the GetIntegrations fan-out returns _integrations[].RequestParameters verbatim, and static parameter mappings can inject a backend API key into every request. Ruling 2026-09-23 (Q40).",
+      "persist_configuration_why": "Off: the GetIntegrations fan-out returns _integrations[].RequestParameters verbatim, and static parameter mappings can inject a backend API key into every request. Ruling 2026-09-23 (Q40). Each route's authorization type is kept as the typed field route_authorization_types (Q44).",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore apigatewayv2 GetApis, GetStages, GetRoutes, GetIntegrations and GetAuthorizers output shapes and custom_fn apigateway_http_apis_detailed, 2026-09-23.",
@@ -665,7 +668,8 @@
         "api_id": "ApiId",
         "api_arn": "_api_arn",
         "api_endpoint": "ApiEndpoint",
-        "protocol_type": "ProtocolType"
+        "protocol_type": "ProtocolType",
+        "route_authorization_types": "_route_authorization_types"
       },
       "tags": {
         "source": "field",

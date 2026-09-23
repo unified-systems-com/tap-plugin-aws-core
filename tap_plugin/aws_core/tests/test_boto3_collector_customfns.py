@@ -283,6 +283,36 @@ class TestCloudfrontDistributionsWithOac:
         item = next(iter(cloudfront_distributions_with_oac(_FakeOacSession([dist]))))
         assert item["_origin_access_controls"] == {}
 
+    def test_origin_access_mode_per_origin(self):
+        # Ruling 2026-09-23 Q44: each origin's access mode survives
+        # configuration being off, read from the summary with no extra call.
+        dist = {
+            "ARN": "arn:aws:cloudfront::111:distribution/E3",
+            "Origins": {
+                "Items": [
+                    {"Id": "oac-origin", "OriginAccessControlId": "EG8DXNRAHC015"},
+                    {
+                        "Id": "oai-origin",
+                        "OriginAccessControlId": "",
+                        "S3OriginConfig": {"OriginAccessIdentity": "origin-access-identity/cloudfront/E2QWRUHAPOMQZL"},
+                    },
+                    {
+                        "Id": "open-s3-origin",
+                        "OriginAccessControlId": "",
+                        "S3OriginConfig": {"OriginAccessIdentity": ""},
+                    },
+                    {"Id": "alb-origin", "CustomOriginConfig": {"OriginProtocolPolicy": "https-only"}},
+                ]
+            },
+        }
+        item = next(iter(cloudfront_distributions_with_oac(_FakeOacSession([dist]))))
+        assert item["_origin_access"] == {
+            "oac-origin": "oac",
+            "oai-origin": "oai",
+            "open-s3-origin": "none",
+            "alb-origin": "none",
+        }
+
     def test_shared_oac_resolved_once(self):
         # Two distributions referencing the same OAC -> one GetOriginAccessControl
         # call (the oac_cache dedups across distributions).

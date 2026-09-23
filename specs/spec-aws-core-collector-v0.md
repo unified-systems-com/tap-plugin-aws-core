@@ -414,6 +414,23 @@ Off, as shipped, each with a reason naming the credential location:
 four types the grid holds only typed fields, tags and edges; nothing downstream
 reads the stored blob. Every other entry persists its full configuration.
 
+**Security facts kept as typed fields (ruling 2026-09-23, Q44a).** Turning
+storage off for those types dropped three security facts that had lived only in
+the stored blob. Each is now a typed field, derived from data the collector
+already fetches (no new AWS call), so it survives with configuration `{}`:
+
+| Type | Field | Source | Value |
+| --- | --- | --- | --- |
+| `aws_core__aws_lambda` | `vpc_subnet_ids`, `vpc_security_group_ids` | `ListFunctions` `VpcConfig.SubnetIds[]` / `VpcConfig.SecurityGroupIds[]` | Lists of ids; both `[]` means the function is not in a VPC. |
+| `aws_core__aws_cloudfront_distribution` | `origin_access` | `ListDistributions` origins, derived by `cloudfront_distributions_with_oac` as `_origin_access` | `{origin Id: "oac" \| "oai" \| "none"}`: a non-empty `OriginAccessControlId` is `oac`, a non-empty `S3OriginConfig.OriginAccessIdentity` is `oai`, neither is `none` (CloudFront sends no credential to that origin). |
+| `aws_core__aws_apigateway_http_api` | `route_authorization_types` | `GetRoutes`, derived by `apigateway_http_apis_detailed` as `_route_authorization_types` | `{RouteKey: AuthorizationType}`, AWS's values passed through: `NONE`, `AWS_IAM`, `JWT`, or `CUSTOM` (a Lambda authorizer); a route that omits it is `NONE`, the AWS default. `null` when `GetRoutes` failed, so a denied listing never reads as "no open routes". |
+
+These are fields, not edges. `aws_core` has no Lambda-to-subnet or
+Lambda-to-security-group edge type, and it does not collect subnets or security
+groups, so an edge to them would be dropped by the v0 fence
+(`req-aws-collector-edges-6`). Nothing else from those types' responses is
+promoted; `aws_core__aws_cognito_user_pool` gains no field.
+
 #### Acceptance Criteria
 
 | ACID | Title | Status | Description | Notes |
@@ -429,6 +446,7 @@ reads the stored blob. Every other entry persists its full configuration.
 | req-aws-collector-field-projection-5 | One Canonical Timestamp | Approved for Development | All date input shapes normalize at collection into one ISO 8601 UTC envelope field; "created/updated after X" is one query, never per-resource spelunking. | Grid-native time is the always-present spine; AWS-source time is null where AWS omits it. |
 | req-aws-collector-field-projection-6 | Reserved Keys & Stable Blob | Approved for Development | `_source`/`_hydrate`/`_hydrate_mapping` are engine-reserved (not authored jsonpath targets); `ResponseMetadata` stripped; deterministic serialization ⇒ unchanged resource = byte-identical `configuration`. | Protects idempotent upsert + History/FLIP. Reserved keys are in-memory only for an entry whose `persist_configuration` is false. |
 | req-aws-collector-field-projection-7 | Per-Entry Configuration Persistence | Approved for Development | Each manifest entry's required `persist_configuration` boolean and non-empty `persist_configuration_why` decide whether the emitted node payload carries the in-memory envelope or `{}`; typed fields, tags and edges are unchanged either way; an entry with a `credential` sensitivity location defaults to false; no model field is removed and no migration is written. | Rulings 2026-09-23 Q38, Q40. `tests/test_boto3_collector_batch.py`, `tests/test_boto3_collector_slice.py::test_credential_canary_is_not_persisted`, `::test_s3_bucket_persists_its_configuration_with_posture`, `tests/test_boto3_collector_sensitivity.py`. |
+| req-aws-collector-field-projection-8 | Off-Type Security Facts Kept | Approved for Development | For entries whose `persist_configuration` is false, the Lambda VPC attachment (`vpc_subnet_ids`, `vpc_security_group_ids`), CloudFront per-origin access mode (`origin_access`) and API Gateway HTTP API per-route authorization type (`route_authorization_types`) are typed fields derived from data already fetched; configuration stays `{}`. | Ruling 2026-09-23 Q44a. Migration 0007. `tests/test_boto3_collector_slice.py::test_promoted_security_facts_land_while_configuration_stays_empty`, `tests/test_boto3_collector_customfns.py::TestCloudfrontDistributionsWithOac::test_origin_access_mode_per_origin`, `tests/test_boto3_collector_new_service_types.py::TestApiGatewayHttpApisDetailed`. |
 
 ### Deterministic Identity
 ----
