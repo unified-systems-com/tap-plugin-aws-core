@@ -52,3 +52,30 @@ def test_two_id_less_creates_stay_distinct(type_slug: str) -> None:
     ).results
     assert all(r.success for r in results)
     assert results[0].entity_id != results[1].entity_id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("type_slug", ["aws_core__aws_ec2_instance", "aws_core__aws_ebs_volume"])
+def test_designed_compute_and_storage_need_no_aws_id(type_slug: str) -> None:
+    """A designed EC2 instance or EBS volume exists before AWS mints its id. Nothing is required, because a
+    collected one can be untagged and so nameless too."""
+    ok = write_batch(
+        [WriteOperation(verb="create_node", type_slug=type_slug, payload={"name": "teleport-auth-a"})],
+        caller_context=CallerContext(),
+    ).results[0]
+    assert ok.success
+
+
+@pytest.mark.django_db
+def test_elb_records_its_load_balancer_type() -> None:
+    """An NLB is an aws_elb with lb_type=network; an unknown type is refused."""
+    good = write_batch(
+        [WriteOperation(verb="create_node", type_slug="aws_core__aws_elb", payload={"name": "gitlab-ssh", "lb_type": "network"})],
+        caller_context=CallerContext(),
+    ).results[0]
+    assert good.success
+    bad = write_batch(
+        [WriteOperation(verb="create_node", type_slug="aws_core__aws_elb", payload={"name": "x", "lb_type": "application"})],
+        caller_context=CallerContext(),
+    ).results[0]
+    assert not bad.success

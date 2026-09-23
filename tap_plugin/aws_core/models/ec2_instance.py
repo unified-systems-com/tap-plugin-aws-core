@@ -43,7 +43,9 @@ class Ec2Instance(BaseModel):
         "ami_id": {"validation": "jsonschema", "schema": {"type": "string"}},
         "configuration": {"validation": "jsonschema", "schema": {"type": "object"}},
     }
-    CREATE_REQUIRED: ClassVar[list[str]] = ["instance_id"]
+    # Nothing is required at create. A designed instance (dcom=design) exists before AWS mints its
+    # instance_id; a collected one can be untagged, so it may have no name. Blank means not observed.
+    CREATE_REQUIRED: ClassVar[list[str]] = []
 
     name = models.CharField(max_length=255, blank=True, default="")
     instance_id = models.CharField(max_length=64, blank=True, default="", db_index=True)

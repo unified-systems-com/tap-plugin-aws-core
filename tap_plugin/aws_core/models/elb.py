@@ -27,6 +27,7 @@ class Elb(BaseModel):
         "name": {"type": "string", "minLength": 1},
         "dns_name": {"type": "string"},
         "scheme": {"type": "string"},
+        "lb_type": {"type": "string", "enum": ["", "classic", "network", "gateway"]},
         "configuration": {"type": "object"},
     }
 
@@ -34,6 +35,7 @@ class Elb(BaseModel):
         "name": {"validation": "jsonschema", "schema": {"type": "string", "minLength": 1}},
         "dns_name": {"validation": "jsonschema", "schema": {"type": "string"}},
         "scheme": {"validation": "jsonschema", "schema": {"type": "string"}},
+        "lb_type": {"validation": "jsonschema", "schema": {"type": "string", "enum": ["", "classic", "network", "gateway"]}},
         "configuration": {"validation": "jsonschema", "schema": {"type": "object"}},
     }
     CREATE_REQUIRED: ClassVar[list[str]] = ["name"]
@@ -41,6 +43,9 @@ class Elb(BaseModel):
     name = models.CharField(max_length=255, blank=True, default="")
     dns_name = models.CharField(max_length=512, blank=True, default="")
     scheme = models.CharField(max_length=32, blank=True, default="")
+    # Which load balancer this is: `classic` (the ELB v1 API), `network` (an NLB) or `gateway` (a GWLB).
+    # ALBs are their own type (aws_alb). Blank means not observed.
+    lb_type = models.CharField(max_length=16, blank=True, default="")
     configuration = models.JSONField(default=dict, blank=True)
 
     class Meta(BaseModel.Meta):
