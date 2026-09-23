@@ -213,8 +213,10 @@ reviewed entry read as cleaner than it is.
 
 For `aws_op` entries a test resolves each declared path against botocore's
 output shape for that op, and checks that every `botocore_sensitive` location
-really carries the trait. `custom_fn` entries build their own items, so their
-paths are checked by reading the `custom_fn`.
+really carries the trait; and, as a completeness ratchet, that every member
+botocore marks `sensitive` in the item shape is covered by a declared location (a
+declared ancestor covers its subtree). `custom_fn` entries build their own items,
+so their paths and completeness are checked by reading the `custom_fn`.
 
 Tag values are operator-set arbitrary strings. Where they ride inside the
 envelope — the `field` lane's `from` path, or `_hydrate.tags` for the `service`

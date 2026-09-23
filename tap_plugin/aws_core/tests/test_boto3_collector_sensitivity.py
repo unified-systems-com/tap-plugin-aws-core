@@ -162,3 +162,52 @@ def test_tag_values_in_the_envelope_are_declared(entry):
     # the raw envelope they must be on the declared work list.
     paths = {loc["path"] for loc in entry.get("sensitivity", {}).get("locations", [])}
     assert _tag_carrier(entry) in paths
+
+
+def _sensitive_member_paths(shape, prefix: str = "", seen: frozenset = frozenset()) -> list[str]:
+    """Every botocore-``sensitive`` member path under ``shape``, in the manifest dialect.
+
+    A map is a leaf (the dialect cannot address map keys), so a sensitive map or
+    map value reports the map's own path.
+    """
+    if shape.name in seen:
+        return []
+    seen = seen | {shape.name}
+    found: list[str] = []
+    if shape.type_name == "structure":
+        for name, member in shape.members.items():
+            path = f"{prefix}.{name}" if prefix else name
+            if member.metadata.get("sensitive"):
+                found.append(path)
+            else:
+                found.extend(_sensitive_member_paths(member, path, seen))
+    elif shape.type_name == "list":
+        found.extend(_sensitive_member_paths(shape.member, f"{prefix}[]", seen))
+    elif shape.type_name == "map" and shape.value.metadata.get("sensitive"):
+        found.append(prefix)
+    return found
+
+
+def _covered(path: str, declared: set[str]) -> bool:
+    return any(path == d or path.startswith((d + ".", d + "[]")) for d in declared)
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [e for e in _entries() if e["source"].get("aws_op")],
+    ids=lambda e: e["entity_type"],
+)
+def test_every_botocore_sensitive_member_is_declared(entry):
+    # The completeness ratchet for aws_op entries: whatever botocore marks
+    # sensitive in the item shape must be on the declared list (a declared
+    # ancestor covers its subtree). custom_fn entries compose their items and
+    # are reviewed by reading the custom_fn.
+    if entry.get("sensitivity", {}).get("status") == "unreviewed":
+        pytest.skip("unreviewed declares nothing to be complete against")
+    model = botocore.session.get_session().get_service_model(entry["service"])
+    shape = model.operation_model(entry["source"]["aws_op"]).output_shape
+    for segment in entry["items_path"].split("."):
+        shape = _step(shape, segment)
+    declared = {loc["path"] for loc in entry["sensitivity"].get("locations", [])}
+    missing = [p for p in _sensitive_member_paths(shape) if not _covered(p, declared)]
+    assert missing == [], f"{entry['entity_type']}: botocore-sensitive members not declared: {missing}"
