@@ -34,9 +34,10 @@ v0 is intentionally scoped to the "meat and potatoes" AWS resources common to mo
 | req-aws-core-identity-center | [IAM Identity Center](#iam-identity-center) | Implemented | Identity Center instance design vocabulary and its open edge to an external identity provider |
 | req-aws-core-transit-gateway | [Transit Gateway](#transit-gateway) | Implemented | Transit gateway and attachment design vocabulary; attachment, VPC and peering edges |
 | req-aws-core-page-dashboard | [AWS Pages](#aws-pages) | Implemented | `/aws`: count tiles, the estate as one picture, accounts per OU, boundary scope |
-| req-aws-core-page-organization | [AWS Pages](#aws-pages) | Implemented | `/aws/organization`: the OU tree, SCP attachments, boundary scope, Identity Center |
+| req-aws-core-page-organization | [AWS Pages](#aws-pages) | Implemented | `/aws/organization`: the OU tree as nested boxes, SCP attachments, account placement |
 | req-aws-core-page-network | [AWS Pages](#aws-pages) | Implemented | `/aws/network`: transit gateways, attachments, gateways, firewalls, Direct Connect |
 | req-aws-core-panel-counts | [AWS Pages](#aws-pages) | Implemented | The `aws-counts` panel type: count tiles over the estate |
+| req-aws-core-layout-hints | [AWS Pages](#aws-pages) | Implemented | Placement read from a node's own `layout:*` tags, never its name or id |
 | req-aws-core-nongoals | [v0 Non-Goals](#v0-non-goals) | Proposed | Explicitly deferred concerns |
 
 ### Plugin Scope
@@ -525,7 +526,7 @@ vocabulary, as above.
 ### AWS Pages
 ----
 RIDs: `req-aws-core-page-dashboard`, `req-aws-core-page-organization`, `req-aws-core-page-network`,
-`req-aws-core-panel-counts`
+`req-aws-core-panel-counts`, `req-aws-core-layout-hints`
 
 Status: `Implemented`
 
@@ -543,15 +544,27 @@ entity id.
   their attachments, VPCs, internet and NAT gateways, network firewalls, the boundaries OUs are scoped
   to), `per-ou` (projection table: accounts directly in each OU), `scope` (projection table: what each
   compliance boundary is scoped from).
-- `/aws/organization` (**Organization**): `tree` (graph: organization ⊃ OU ⊃ account, SCP →
-  target lines, OU → boundary lines, Identity Center → trusted identity source), `scp` (SCP
-  attachments), `placement` (each account and its parent).
+- `/aws/organization` (**Organization**): `tree` (graph: organization ⊃ OU ⊃ account and nothing
+  else, laid out by `aws-organization.js`), `scp` (SCP attachments), `placement` (each account and
+  its parent). Policies, boundaries and Identity Center stay in the tables and on `/aws`; drawing
+  them as lines across the tree made it unreadable (George, 2026-09-24).
 - `/aws/network` (**Network**): `plane` (graph: each transit gateway around its attachments, a line
   from each VPC attachment to its VPC, peering attachments to their peer, VPCs, internet and NAT
   gateways, firewalls), `attachments` (gateway, attachment, VPC, CIDR), `igw` (every internet
   gateway), `dx` (Direct Connect: a text panel until aws_core carries Direct Connect types; it says
   plainly that no connection is on the grid).
-- Layout module `static/aws_core/js/projections/aws-estate.js`, shared by the three graphs: nests on
+- Layout module `static/aws_core/js/projections/aws-organization.js` (the organization graph): nests
+  on `NESTED_UNDER_PARENT` only. The organization lays its children out in columns and each OU lays
+  its children out in one row, both from the nodes' layout tags (below); with no tags it still
+  draws, one column and rows by label.
+- Layout hints `static/aws_core/js/runtime/layout-hints.js`, importable by any layout module: three
+  neutral tag keys on the node itself. `layout:order` (integer) orders siblings; unordered siblings
+  follow, by label. `layout:column` (integer, default 0) picks a column where the parent lays out in
+  columns. `layout:fill` (`"true"`) widens a box to its column's widest sibling, or else to the rest
+  of its row. The helpers stamp `_stage` / `_order` for tap_viz's `ranked` inner layout and stretch
+  filled boxes after projection. They name no entity type and no deployment; the tag values come
+  from whatever seeds or collects the node.
+- Layout module `static/aws_core/js/projections/aws-estate.js`, shared by the dashboard and network graphs: nests on
   `NESTED_UNDER_PARENT` (organization and OU around their children), `ATTACHED_TO_TRANSIT_GATEWAY`
   (a gateway around its attachments) and the collector's `aws_account` dimension (an account around
   what was collected in it); every other edge is a line; roots stack in bands. Nothing is placed by
@@ -570,6 +583,9 @@ entity id.
 | --- | --- | :---: | --- | --- |
 | req-aws-core-page-dashboard-1 | Dashboard Seeded | Implemented | `/aws` exists and mounts counts, estate, per-ou and scope. | Observed on the highbar dev grid, 2026-09-24. |
 | req-aws-core-page-organization-1 | Organization Page Seeded | Implemented | `/aws/organization` exists, mounts tree, scp and placement, and its breadcrumb parent is `/aws`. | |
+| req-aws-core-page-organization-2 | Tree Only | Implemented | The tree graph's searches return organizations, OUs, accounts and `NESTED_UNDER_PARENT` edges, nothing else: no policy, boundary or Identity Center node or line. | Observed on the highbar dev grid, 2026-09-24. |
+| req-aws-core-layout-hints-1 | Order And Column From Tags | Implemented | Siblings are placed by `layout:order`, and under the organization by `layout:column`; a node's name and id are never read for placement. | Observed on the highbar dev grid, 2026-09-24. |
+| req-aws-core-layout-hints-2 | Fill To Lane | Implemented | A `layout:fill` box widens to its column's widest sibling when it shares a column, else to the rest of its row. | Observed on the highbar dev grid, 2026-09-24. |
 | req-aws-core-page-network-1 | Network Page Seeded | Implemented | `/aws/network` exists, mounts plane, attachments, igw and dx, and its breadcrumb parent is `/aws`. | |
 | req-aws-core-page-network-2 | Direct Connect Stated, Not Invented | Implemented | With no Direct Connect vocabulary or data, the dx section says no connection is on the grid; it draws no placeholder site. | |
 | req-aws-core-panel-counts-1 | Counts Fold Purely | Implemented | Tiles fold from Gryphon envelopes by pure functions; a failed read renders "read failed", never 0. | `tests/test_counts_panel.py` |

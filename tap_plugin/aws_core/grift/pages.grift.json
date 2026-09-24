@@ -6,15 +6,15 @@
   "batches": [
     {
       "batch_entity": {
-        "entity_id": "01a0d4ae-fc38-7777-9184-47d8cd2e54d3",
+        "entity_id": "01a0d4f6-5e11-75b1-a612-9439c352cfa2",
         "entity_type": "batch",
-        "name": "aws_core pages v0.1.0",
+        "name": "aws_core pages v0.2.0",
         "dimensions": {}
       },
       "batch_node": {
         "source": "tap_plugin.aws_core.grift.pages",
-        "name": "aws_core pages v0.1.0",
-        "description": "aws_core's reusable pages (req-aws-core-page-dashboard, -organization, -network): /aws, a dashboard of count tiles, the estate as one picture and two tables; /aws/organization, the OU tree with SCP attachments, boundary scope and Identity Center; /aws/network, transit gateways, attachments, gateways, firewalls and Direct Connect. Every search reads whatever AWS nodes the grid holds: nothing here names a deployment. The children nest under /aws by URL. The graphs share one layout module (aws-estate.js) and the tiles are the aws-counts panel type."
+        "name": "aws_core pages v0.2.0",
+        "description": "aws_core's reusable pages (req-aws-core-page-dashboard, -organization, -network): /aws, a dashboard of count tiles, the estate as one picture and two tables; /aws/organization, the OU tree placed by layout tags, with SCP attachments and account placement; /aws/network, transit gateways, attachments, gateways, firewalls and Direct Connect. Every search reads whatever AWS nodes the grid holds: nothing here names a deployment. The children nest under /aws by URL. The graphs share one layout module (aws-estate.js) and the tiles are the aws-counts panel type. v0.2.0 (George, 2026-09-24): the organization graph draws the OU tree only, laid out by aws-organization.js from the nodes' layout:* tags; its scoped, scp and idp searches are gone (on an existing grid, retire those three search nodes: a batch cannot remove a node)."
       },
       "nodes": [
         {
@@ -382,7 +382,7 @@
           "node": {
             "name": "AWS organization",
             "slug": "aws-org-graph",
-            "description": "The AWS Organizations tree: the organization (its root) around every top-level OU and account, each OU around its children; service control policies with a line to every target they are attached to; the compliance boundaries each OU is scoped to (red dashed lines); IAM Identity Center with a line to the identity provider it trusts.",
+            "description": "The AWS Organizations tree: the organization (its root) around every top-level OU and account, each OU around its children. Placement is read from each node's layout tags (layout:column, layout:order, layout:fill); service control policies, compliance boundaries and Identity Center are left to the tables and the other pages.",
             "view": "tap_viz/panels/graph_panel.html",
             "config": {
               "height": "100%",
@@ -399,7 +399,7 @@
           },
           "node": {
             "name": "AWS organization projection",
-            "description": "AWS organization: one elevation, the aws-estate layout module, standard icon-badge chrome, opens fitted.",
+            "description": "AWS organization: one elevation, the aws-organization layout module, standard icon-badge chrome, opens fitted.",
             "definition": {
               "node_style": {
                 "mode": "icon-badge"
@@ -442,9 +442,9 @@
           },
           "node": {
             "name": "AWS organization layout",
-            "description": "aws-estate.js: nests the organisation tree on NESTED_UNDER_PARENT and each transit gateway's attachments on ATTACHED_TO_TRANSIT_GATEWAY; every other edge is a line; roots stack in bands (organisation, transit, VPCs and gateways, policies, boundaries, outside systems).",
+            "description": "aws-organization.js: nests the organisation tree on NESTED_UNDER_PARENT; the organization lays its children out in columns, each OU its children in one row, both ordered by the nodes' layout tags; layout:fill boxes stretch to their column or row.",
             "definition": {
-              "js_file": "tap_plugin/aws_core/static/aws_core/js/projections/aws-estate.js"
+              "js_file": "tap_plugin/aws_core/static/aws_core/js/projections/aws-organization.js"
             }
           }
         },
@@ -457,13 +457,13 @@
           },
           "node": {
             "name": "aws — AWS organization nodes",
-            "description": "Every organization, OU, account, service control policy and Identity Center instance on the grid.",
+            "description": "Every organization, OU and account on the grid.",
             "search_type": "gryphon",
             "root": "node",
             "definition": {
               "query": [
                 "MATCH (n)",
-                "WHERE n.entity_type IN [\"aws_core__aws_organization\", \"aws_core__aws_organizational_unit\", \"aws_core__aws_account\", \"aws_core__aws_service_control_policy\", \"aws_core__aws_identity_center_instance\"]",
+                "WHERE n.entity_type IN [\"aws_core__aws_organization\", \"aws_core__aws_organizational_unit\", \"aws_core__aws_account\"]",
                 "RETURN n"
               ]
             }
@@ -484,66 +484,6 @@
             "definition": {
               "query": [
                 "MATCH (a)-[:NESTED_UNDER_PARENT__aws_core]->(b)",
-                "RETURN a, b"
-              ]
-            }
-          }
-        },
-        {
-          "entity": {
-            "entity_id": "01a0d4ae-ef03-71af-bdb6-fcfc671fb12d",
-            "entity_type": "search",
-            "name": "aws — AWS organization scoped",
-            "dimensions": {}
-          },
-          "node": {
-            "name": "aws — AWS organization scoped",
-            "description": "Compliance boundaries scoped from an OU or an account (SCOPED_TO_COMPLIANCE_BOUNDARY), with the boundary node.",
-            "search_type": "gryphon",
-            "root": "node",
-            "definition": {
-              "query": [
-                "MATCH (a)-[:SCOPED_TO_COMPLIANCE_BOUNDARY__compliance_core]->(b:compliance_core__compliance_boundary) WHERE a.entity_type IN [\"aws_core__aws_organizational_unit\", \"aws_core__aws_account\"]",
-                "RETURN a, b"
-              ]
-            }
-          }
-        },
-        {
-          "entity": {
-            "entity_id": "01a0d4ae-efbc-718f-9609-431607e43e05",
-            "entity_type": "search",
-            "name": "aws — AWS organization scp",
-            "dimensions": {}
-          },
-          "node": {
-            "name": "aws — AWS organization scp",
-            "description": "Each service control policy and the targets it is attached to.",
-            "search_type": "gryphon",
-            "root": "node",
-            "definition": {
-              "query": [
-                "MATCH (a)-[:ATTACHED_TO_TARGET__aws_core]->(b)",
-                "RETURN a, b"
-              ]
-            }
-          }
-        },
-        {
-          "entity": {
-            "entity_id": "01a0d4ae-f046-77f4-b7c4-a1a93aa3c7ad",
-            "entity_type": "search",
-            "name": "aws — AWS organization idp",
-            "dimensions": {}
-          },
-          "node": {
-            "name": "aws — AWS organization idp",
-            "description": "IAM Identity Center and the external identity provider it trusts.",
-            "search_type": "gryphon",
-            "root": "node",
-            "definition": {
-              "query": [
-                "MATCH (a)-[:TRUSTS_IDENTITY_SOURCE__aws_core]->(b)",
                 "RETURN a, b"
               ]
             }
@@ -1407,48 +1347,6 @@
           "edge": {
             "from_entity_id": "01a0d4ae-ebb1-76ed-bf93-bfe17f08910c",
             "to_entity_id": "01a0d4ae-ee4c-769c-9f3b-81a58af39fbc",
-            "edge_type": "USES_SEARCH",
-            "properties": {}
-          }
-        },
-        {
-          "entity": {
-            "entity_id": "01a0d4ae-ef75-75f8-9a6b-35bb18d2c98c",
-            "entity_type": "edge",
-            "name": "AWS organization panel USES_SEARCH scoped",
-            "dimensions": {}
-          },
-          "edge": {
-            "from_entity_id": "01a0d4ae-ebb1-76ed-bf93-bfe17f08910c",
-            "to_entity_id": "01a0d4ae-ef03-71af-bdb6-fcfc671fb12d",
-            "edge_type": "USES_SEARCH",
-            "properties": {}
-          }
-        },
-        {
-          "entity": {
-            "entity_id": "01a0d4ae-f006-77cc-9cd3-70f2ffaecb80",
-            "entity_type": "edge",
-            "name": "AWS organization panel USES_SEARCH scp",
-            "dimensions": {}
-          },
-          "edge": {
-            "from_entity_id": "01a0d4ae-ebb1-76ed-bf93-bfe17f08910c",
-            "to_entity_id": "01a0d4ae-efbc-718f-9609-431607e43e05",
-            "edge_type": "USES_SEARCH",
-            "properties": {}
-          }
-        },
-        {
-          "entity": {
-            "entity_id": "01a0d4ae-f08b-761c-9d0e-119319ba109b",
-            "entity_type": "edge",
-            "name": "AWS organization panel USES_SEARCH idp",
-            "dimensions": {}
-          },
-          "edge": {
-            "from_entity_id": "01a0d4ae-ebb1-76ed-bf93-bfe17f08910c",
-            "to_entity_id": "01a0d4ae-f046-77f4-b7c4-a1a93aa3c7ad",
             "edge_type": "USES_SEARCH",
             "properties": {}
           }
