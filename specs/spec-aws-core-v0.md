@@ -568,9 +568,10 @@ entity id.
   tag keys on the node itself. `layout:order` (integer) orders siblings; unordered siblings follow,
   by label. `layout:column` (integer, default 0) picks a column where the parent lays out in columns.
   `layout:columns` (integer, on a parent) wraps its children at that many per row; 1 stacks them.
-  `layout:row` (integer) groups a parent's children into rows where the layout asks for rows by tag.
-  `layout:fill` (`"true"`) widens a box to its parent's inner width when the parent holds one column,
-  to its column's widest sibling when it holds several, or else to the rest of its row. The helpers
+  `layout:row` (integer) groups a parent's children into rows where the layout asks for rows by tag; inside a row, siblings sharing a `layout:column` stack in one column.
+  `layout:fill` (`"true"`) widens a box that shares its column with other siblings to the
+  parent's inner width (when every sibling is in that one column) or to the column's widest box;
+  a box alone in its column is a row cell and takes the rest of its row. The helpers
   stamp `_stage` / `_order` for tap_viz's `ranked` inner layout; a parent with more than one row
   gets an invisible row box per row (view-only `_layout_row` nodes and `_LAYOUT_ROW` edges, sized
   bottom-up by the projection like any box). They name no entity type and no deployment; the tag
@@ -603,8 +604,8 @@ entity id.
 | req-aws-core-page-organization-1 | Organization Page Seeded | Implemented | `/aws/organization` exists, mounts tree, scp and placement, and its breadcrumb parent is `/aws`. | |
 | req-aws-core-page-organization-2 | Tree Only | Implemented | The tree graph's searches return organizations, OUs, accounts and `NESTED_UNDER_PARENT` edges, nothing else: no policy, boundary or Identity Center node or line. | Observed on the highbar dev grid, 2026-09-24. |
 | req-aws-core-layout-hints-1 | Order And Column From Tags | Implemented | Siblings are placed by `layout:order`, and under the organization by `layout:column`; a node's name and id are never read for placement. | Observed on the highbar dev grid, 2026-09-24. |
-| req-aws-core-layout-hints-2 | Fill To Lane | Implemented | A `layout:fill` box widens to its parent's inner width in a one-column parent, to its column's widest sibling in a parent of several columns, else to the rest of its row. | Observed on the highbar dev grid, 2026-09-24. |
-| req-aws-core-layout-hints-3 | Rows From Tags | Implemented | A parent's `layout:columns` wraps its children into rows of at most that many (1 stacks them); where the layout groups by `layout:row`, children sharing a value share a row. | Observed on the highbar dev grid, 2026-09-24. |
+| req-aws-core-layout-hints-2 | Fill To Lane | Implemented | A `layout:fill` box sharing its column with siblings widens to the parent's inner width when all siblings share that column, else to the column's widest box; a box alone in its column takes the rest of its row. | Observed on the highbar dev grid, 2026-09-24. |
+| req-aws-core-layout-hints-3 | Rows From Tags | Implemented | A parent's `layout:columns` wraps its children into rows of at most that many (1 stacks them); where the layout groups by `layout:row`, children sharing a value share a row, and those in a row sharing a `layout:column` stack in one column. | Observed on the highbar dev grid, 2026-09-24. |
 | req-aws-core-page-network-1 | Network Page Seeded | Implemented | `/aws/network` exists, mounts plane, attachments, igw and dx, and its breadcrumb parent is `/aws`. | |
 | req-aws-core-page-network-2 | Direct Connect Stated, Not Invented | Implemented | With no Direct Connect data, the dx section says no connection is on the grid; it draws no placeholder site. | |
 | req-aws-core-page-network-3 | VPCs Hold Their Subnets | Implemented | The plane nests each subnet in the VPC that `PARTITIONED_INTO_SUBNET` it, in its availability zone's column, and each internet gateway in the VPC it is `ATTACHED_TO_VPC`; a resource in one subnet nests in it, a resource in several subnets of one VPC nests in the VPC with a line to each. | `tests/test_network_page_bundle.py` (scene searches). The layout itself has no JS test and is not yet observed in a browser. |

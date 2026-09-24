@@ -11,10 +11,11 @@
  *   layout:columns  integer, on a PARENT; at most this many children per row, wrapping into
  *                   further rows. 1 stacks the children in one column.
  *   layout:row      integer; which row of its parent a node sits in, where the parent groups
- *                   its children into rows by tag (arrangeRows with byRowTag).
- *   layout:fill     "true"; the box widens to its lane: its parent's inner width when the parent
- *                   holds one column, the widest box of its column when the parent holds several,
- *                   or else the rest of the row it sits in.
+ *                   its children into rows by tag (arrangeRows with byRowTag). Inside a row,
+ *                   siblings sharing a layout:column stack in one column, in layout:order.
+ *   layout:fill     "true"; the box widens to its lane. Sharing a column with other siblings:
+ *                   the parent's inner width when all siblings share that one column, else the
+ *                   column's widest box. Alone in its column (a row cell): the rest of its row.
  *
  * The helpers stamp `_stage` / `_order` for tap_viz's `ranked` inner layout (nested-projection.js).
  * A parent laid out in several rows gets one invisible row box per row (type `_layout_row`,
@@ -31,12 +32,10 @@ export const ROW = {type: "_layout_row", edge: "_LAYOUT_ROW"};
 export const ROW_RELATIONSHIP = {name: "layout-rows", gryphon: `(parent)-[:${ROW.edge}]->(child)`};
 
 const HIDDEN = "tap-elevation-hidden";
-//: Offset for siblings with no layout:order, so they always follow the ordered ones.
-const UNORDERED = 100000;
 
 //: The integer value of a tag, or null when absent or not an integer.
 export function intTag(n, key) {
-    const raw = (n.data("tags") || {})[key];
+    const raw = new Map(Object.entries(n.data("tags") || {})).get(key);
     if (raw === undefined || raw === null || raw === "") return null;
     const v = Number(raw);
     return Number.isInteger(v) ? v : null;
@@ -64,8 +63,13 @@ function _byLabel(a, b) {
 
 //: Siblings in layout:order, unordered ones after, by label.
 export function sortSiblings(siblings) {
-    const key = (n) => { const o = intTag(n, LAYOUT_TAG.order); return o === null ? UNORDERED : o; };
-    return [...siblings].sort((a, b) => (key(a) - key(b)) || _byLabel(a, b));
+    const order = (n) => intTag(n, LAYOUT_TAG.order);
+    return [...siblings].sort((a, b) => {
+        const oa = order(a);
+        const ob = order(b);
+        if ((oa === null) !== (ob === null)) return oa === null ? 1 : -1;
+        return ((oa || 0) - (ob || 0)) || _byLabel(a, b);
+    });
 }
 
 //: Columns: layout:column picks the column (default 0), layout:order the place in it.
@@ -113,7 +117,7 @@ export function arrangeRows(cy, parent, children, opts) {
         for (let i = 0; i < ordered.length; i += k) rows.push(ordered.slice(i, i + k));
     }
     if (rows.length <= 1) {
-        ordered.forEach((n, i) => { n.data("_stage", i); n.data("_order", i); });
+        _stampRow(ordered);
         return;
     }
     if (rows.every((r) => r.length === 1)) {
@@ -128,14 +132,24 @@ export function arrangeRows(cy, parent, children, opts) {
     }
     rows.forEach((row, r) => {
         const rowId = `${ROW.type}:${parent.id()}:${r}`;
-        cy.add({group: "nodes", data: {id: rowId, entity_type: ROW.type, label: "", _stage: 0, _order: r,
-                                       _layout_fill: true, _layout_inset: 0}, classes: ROW.type});
+        // shape / icon_url: the icon-badge node style maps both from data; a row box draws neither.
+        cy.add({group: "nodes", data: {id: rowId, entity_type: ROW.type, label: "", shape: "rectangle", icon_url: "none",
+                                       _stage: 0, _order: r, _layout_fill: true, _layout_inset: 0}, classes: ROW.type});
         cy.add({group: "edges", data: {id: `${ROW.edge}:${rowId}`, source: parent.id(), target: rowId, edge_type: ROW.edge}, classes: ROW.type});
-        row.forEach((n, i) => {
-            n.data("_stage", i);
-            n.data("_order", i);
+        _stampRow(row);
+        row.forEach((n) => {
             cy.add({group: "edges", data: {id: `${ROW.edge}:${n.id()}`, source: rowId, target: n.id(), edge_type: ROW.edge}, classes: ROW.type});
         });
+    });
+}
+
+//: One row for `ranked`: each child its own column, unless children carry layout:column, in
+//: which case those sharing a value stack in that column (in the row's sorted order).
+function _stampRow(row) {
+    const tagged = row.some((n) => intTag(n, LAYOUT_TAG.column) !== null);
+    row.forEach((n, i) => {
+        n.data("_stage", tagged ? (intTag(n, LAYOUT_TAG.column) || 0) : i);
+        n.data("_order", i);
     });
 }
 
@@ -177,10 +191,11 @@ function _depth(cy, n) {
  */
 export function fill(cy, opts) {
     const o = opts || {};
+    const insets = new Map(Object.entries(o.insets || {}));
     const insetOf = (p) => {
         if (p.data("_layout_inset") != null) return p.data("_layout_inset");
-        const t = p.data("entity_type");
-        if (o.insets && o.insets[t] != null) return o.insets[t];
+        const byType = insets.get(p.data("entity_type"));
+        if (byType != null) return byType;
         return o.inset != null ? o.inset : 24;
     };
     const fills = cy.nodes().filter(isFill).sort((a, b) => _depth(cy, a) - _depth(cy, b));
