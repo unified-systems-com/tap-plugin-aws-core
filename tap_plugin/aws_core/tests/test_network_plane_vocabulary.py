@@ -57,8 +57,14 @@ def _node(type_slug: str, payload: dict[str, Any]):
     ).results[0]
 
 
-# Required fields of existing aws_core models that the fixtures create.
-_REQUIRED = {"aws_core__aws_security_group": {"group_id": "sg-0123456789abcdef0"}, "aws_core__aws_internet_gateway": {"igw_id": "igw-0123456789abcdef0"}}
+# Fields the fixtures set on existing aws_core models: required ones, and an ELB's lb_type so the
+# endpoint-service case targets a Network Load Balancer (aws_elb covers classic, network and
+# gateway load balancers; PrivateLink fronts only the last two).
+_REQUIRED = {
+    "aws_core__aws_security_group": {"group_id": "sg-0123456789abcdef0"},
+    "aws_core__aws_internet_gateway": {"igw_id": "igw-0123456789abcdef0"},
+    "aws_core__aws_elb": {"lb_type": "network"},
+}
 
 
 def _entity(type_slug: str, name: str) -> Entity:
