@@ -90,6 +90,7 @@ CATALOGUE: tuple[TileDef, ...] = (
 BY_KEY = {t.key: t for t in CATALOGUE}
 
 TREE_QUERY = f"MATCH (c)-[:{NESTED}]->(p) RETURN c.entity_id AS child, p.entity_id AS parent"
+BOUNDARY_QUERY = "MATCH (b:compliance_core__compliance_boundary) RETURN b"
 SCOPE_QUERY = f"MATCH (x)-[:{SCOPED}]->(b) RETURN x.entity_id AS member, b.entity_id AS boundary, b.name AS name"
 
 
@@ -105,11 +106,14 @@ def fold_tile(tile: TileDef, envelope: dict[str, Any]) -> dict[str, Any]:
 
 
 def boundary_tiles(accounts: list[dict[str, Any]], tree_rows: list[dict[str, Any]],
-                   scope_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Accounts inside each boundary: the account, or any OU above it, is scoped to the boundary."""
+                   scope_rows: list[dict[str, Any]], boundaries: list[dict[str, Any]] = ()) -> list[dict[str, Any]]:
+    """Accounts inside each boundary: the account, or any OU above it, is scoped to the boundary.
+
+    Every boundary node in ``boundaries`` gets a tile, so a boundary nothing is scoped to shows 0
+    rather than disappearing."""
     parent = {r["child"]: r["parent"] for r in tree_rows if r.get("child") and r.get("parent")}
     scoped: dict[str, set[str]] = {}
-    names: dict[str, str] = {}
+    names: dict[str, str] = {b["entity_id"]: b.get("name") or b["entity_id"] for b in boundaries}
     for r in scope_rows:
         if r.get("member") and r.get("boundary"):
             scoped.setdefault(r["member"], set()).add(r["boundary"])
@@ -175,7 +179,12 @@ class AwsCountsPanelType:
                     accounts = list(execute_gryphon_raw(BY_KEY["accounts"].query, {}, layer="full").get("nodes") or [])
                 tree = execute_gryphon_raw(TREE_QUERY, {}, layer="full").get("rows") or []
                 scope = execute_gryphon_raw(SCOPE_QUERY, {}, layer="full").get("rows") or []
-                tiles += boundary_tiles(accounts, tree, scope)
+                try:
+                    boundaries = execute_gryphon_raw(BOUNDARY_QUERY, {}, layer="full").get("nodes") or []
+                except Exception:  # noqa: BLE001 — a grid without compliance_core has no boundary type
+                    logger.info("aws counts: no compliance boundary type on this grid; tiles follow scope edges only")
+                    boundaries = []
+                tiles += boundary_tiles(accounts, tree, scope, boundaries)
             except Exception:  # noqa: BLE001
                 logger.exception("[a3c7] aws counts: boundary read failed for panel %s", panel.entity_id)
                 tiles.append(_error_tile("boundaries", "Accounts in each boundary"))

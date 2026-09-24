@@ -55,3 +55,8 @@ def test_a_cycle_in_the_tree_terminates() -> None:
     tiles = boundary_tiles([_n("a")], [{"child": "a", "parent": "b"}, {"child": "b", "parent": "a"}],
                            [{"member": "b", "boundary": "x", "name": "x"}])
     assert tiles[0]["value"] == 1
+
+
+def test_a_boundary_nothing_is_scoped_to_shows_zero() -> None:
+    tiles = boundary_tiles([_n("a")], [], [], [{"entity_id": "b9", "name": "empty"}])
+    assert [(t["label"], t["value"]) for t in tiles] == [("Accounts in empty", 0)]
