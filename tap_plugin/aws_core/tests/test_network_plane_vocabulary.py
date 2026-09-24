@@ -1,6 +1,6 @@
 """Network-plane design vocabulary: placement edges, Direct Connect, PrivateLink, DNS Firewall, Private CA.
 
-Covers req-aws-core-placement, req-aws-core-direct-connect, req-aws-core-privatelink,
+Covers req-aws-core-placement (including -5, the subnet's zone edge), req-aws-core-direct-connect, req-aws-core-privatelink,
 req-aws-core-dns-firewall and req-aws-core-private-ca (specs/spec-aws-core-v0.md): each type creates
 through the service layer with only a name, keys on its AWS id, refuses a malformed id, and each edge
 declares exactly the endpoints it names.
@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 from tap_plugin.aws_core.models import (
     AcmPrivateCa,
+    AvailabilityZone,
     DxConnection,
     DxGateway,
     DxVirtualInterface,
@@ -222,6 +223,7 @@ class TestEdges:
             ("RESIDES_IN_SUBNET__aws_core", t("ecs_service"), t("subnet")),
             ("RESIDES_IN_SUBNET__aws_core", t("vpc_endpoint"), t("subnet")),
             ("ATTACHED_TO_VPC__aws_core", t("internet_gateway"), t("vpc")),
+            ("RESIDES_IN_AZ__aws_core", t("subnet"), t("az")),
             ("CARRIED_ON_CONNECTION__aws_core", t("dx_virtual_interface"), t("dx_connection")),
             ("ATTACHED_TO_DX_GATEWAY__aws_core", t("dx_virtual_interface"), t("dx_gateway")),
             ("ATTACHES_DX_GATEWAY__aws_core", t("transit_gateway_attachment"), t("dx_gateway")),
@@ -247,6 +249,9 @@ class TestEdges:
             ("RESIDES_IN_VPC__aws_core", t("ec2_instance"), t("vpc")),  # placed in a subnet instead
             ("PARTITIONED_INTO_SUBNET__aws_core", t("subnet"), t("vpc")),
             ("ATTACHED_TO_VPC__aws_core", t("nat_gateway"), t("vpc")),
+            ("RESIDES_IN_AZ__aws_core", t("ec2_instance"), t("az")),  # reaches its zone through its subnet
+            ("RESIDES_IN_AZ__aws_core", t("az"), t("subnet")),
+            ("RESIDES_IN_AZ__aws_core", t("subnet"), t("region")),
             ("CARRIED_ON_CONNECTION__aws_core", t("dx_gateway"), t("dx_connection")),
             ("ATTACHES_DX_GATEWAY__aws_core", t("dx_virtual_interface"), t("dx_gateway")),
             ("CONSUMES_ENDPOINT_SERVICE__aws_core", t("vpc"), t("vpc_endpoint_service")),
@@ -281,3 +286,21 @@ class TestEdges:
         assert result.success, result.errors
         assert not Subnet.objects.filter(entity_id=subnet.id).exists()
         assert Entity.objects.filter(id=sg.id, deleted_at__isnull=True).exists()
+
+    @pytest.mark.skipif(
+        "cascade" not in inspect.signature(delete_node).parameters,
+        reason="this core predates contained cascade (req-grid-service-delete-cascade)",
+    )
+    def test_a_subnets_zone_outlives_the_subnet(self) -> None:
+        # req-aws-core-placement-5: RESIDES_IN_AZ is a reference, so the zone stays live.
+        vpc, subnet, zone = _entity(t("vpc"), "v"), _entity(t("subnet"), "s"), _entity(t("az"), "us-gov-east-1a")
+        assert _edge(vpc, subnet, "PARTITIONED_INTO_SUBNET__aws_core").success
+        assert _edge(subnet, zone, "RESIDES_IN_AZ__aws_core").success
+        result = delete_node(str(vpc.id), caller_context=CallerContext(), cascade="contained")
+        assert result.success, result.errors
+        assert not Subnet.objects.filter(entity_id=subnet.id).exists()
+        assert Entity.objects.filter(id=zone.id, deleted_at__isnull=True).exists()
+
+    def test_zone_edge_is_not_containment(self) -> None:
+        for model in (Subnet, AvailabilityZone, Vpc):
+            assert "RESIDES_IN_AZ__aws_core" not in getattr(model, "CONTAINMENT_EDGES", ())

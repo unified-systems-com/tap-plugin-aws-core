@@ -210,7 +210,7 @@ The categories (representative; the manifest is the canonical, enforced list):
 
 | Category | Edge Types | Description |
 | --- | --- | --- |
-| Structural | DIVIDED_INTO_AZ, NESTED_UNDER_PARENT, BELONGS_TO_ACCOUNT, RESIDES_IN_VPC, PARTITIONED_INTO_SUBNET, RESIDES_IN_SUBNET, ATTACHED_TO_VPC | Region → availability zone reference topology (parent→child); the Organizations tree (child→parent) |
+| Structural | DIVIDED_INTO_AZ, NESTED_UNDER_PARENT, BELONGS_TO_ACCOUNT, RESIDES_IN_VPC, PARTITIONED_INTO_SUBNET, RESIDES_IN_SUBNET, ATTACHED_TO_VPC, RESIDES_IN_AZ | Region → availability zone reference topology (parent→child); the Organizations tree (child→parent) |
 | Network attachment | ATTACHED_TO_TRANSIT_GATEWAY, ATTACHES_VPC, PEERS_WITH_TRANSIT_GATEWAY, ATTACHES_DX_GATEWAY, CARRIED_ON_CONNECTION, ATTACHED_TO_DX_GATEWAY, TERMINATES_AT_CUSTOMER_DEVICE, CONSUMES_ENDPOINT_SERVICE | Transit gateway attachments, Direct Connect, and PrivateLink |
 | Operational | INVOKES_LAMBDA, ROUTES_TRAFFIC, WRITES_LOGS, RETRIEVES_CONTENT_FROM, RETRIEVES_CERT_FROM | Runtime actions, traffic, and data retrieval (`_FROM` = data-backwards) |
 | Access/Security | ASSUMES_ROLE, FEDERATES_INTO_ROLE, ATTACHED_TO_TARGET, TRUSTS_IDENTITY_SOURCE, FILTERS_VPC_DNS, ISSUED_BY_CA | IAM role assumption and federated identity; SCP attachment; Identity Center's external identity provider |
@@ -646,6 +646,14 @@ a networked resource sits in, so a page can nest account → VPC → subnet → 
   recorded twice.
 - `ATTACHED_TO_VPC` (internet gateway → VPC): kept apart from `RESIDES_IN_VPC` because an internet
   gateway exists on its own and can be detached and attached elsewhere.
+- `RESIDES_IN_AZ` (subnet → `aws_az`): the zone a subnet was created in. A subnet lives in exactly one
+  zone and cannot span zones or move, so there is one edge per subnet; the edge schema has no
+  cardinality field, so the rule is stated in the edge description and not enforced on write
+  (unified-systems-com/tap#794). Subnet-placed resources reach their zone through the subnet and do
+  not carry it, as they do not carry `RESIDES_IN_VPC`. It is a reference: the zone is AWS's reference
+  topology, never retires with a subnet, and is not a second containing parent (the VPC is the only
+  one). The subnet's `availability_zone` field is the AWS-reported string the collector derives this
+  edge from (matched to the `aws_az` node of that name); placement queries use the edge.
 - **Delete tree.** Only `PARTITIONED_INTO_SUBNET` is containment, declared on `Vpc` through
   `CONTAINMENT_EDGES` and `OUTBOUND_EDGES`. A subnet exists only inside its VPC. The cascade stops at
   the subnet, which declares nothing. VPC-wide resources point child → VPC, and a cascade cannot
@@ -662,7 +670,8 @@ a networked resource sits in, so a page can nest account → VPC → subnet → 
   `OwnerAccountId`, `ownerAccount`), falling back to the run's account. `RESIDES_IN_VPC` comes from
   `VpcId`. `PARTITIONED_INTO_SUBNET` comes from the subnet's `VpcId`. `RESIDES_IN_SUBNET` comes from
   `SubnetId` or each entry of the item's subnet list. `ATTACHED_TO_VPC` comes from
-  `Attachments[].VpcId`. These are manifest `edges` entries like the existing ones.
+  `Attachments[].VpcId`. `RESIDES_IN_AZ` comes from the subnet's `AvailabilityZone`.
+  These are manifest `edges` entries like the existing ones.
 
 #### Acceptance Criteria
 
@@ -672,6 +681,7 @@ a networked resource sits in, so a page can nest account → VPC → subnet → 
 | req-aws-core-placement-2 | VPC And Subnet Placement | Implemented | `RESIDES_IN_VPC`, `RESIDES_IN_SUBNET` and `ATTACHED_TO_VPC` declare the pairs above and no others; a subnet-placed resource is not a `RESIDES_IN_VPC` source. | |
 | req-aws-core-placement-3 | VPC Contains Its Subnets | Implemented | `Vpc.CONTAINMENT_EDGES == ("PARTITIONED_INTO_SUBNET__aws_core",)`; a contained cascade from a VPC retires its subnets and leaves a security group that `RESIDES_IN_VPC` live. | Cascade test skips on a core without `cascade`. |
 | req-aws-core-placement-4 | Owner Not Duplicated | Implemented | The network-plane types added with these edges carry no `owner_account_id`; ownership is the edge. | The transit gateway types keep the AWS-reported owner field from `req-aws-core-transit-gateway`. |
+| req-aws-core-placement-5 | Subnet Zone Edge | Implemented | `RESIDES_IN_AZ` declares `aws_subnet` as its only source and `aws_az` as its only target; no model lists it in `CONTAINMENT_EDGES`, so a contained cascade from a VPC retires its subnets and leaves their zones live. | Exactly-one per subnet is stated, not enforced (unified-systems-com/tap#794). |
 
 ### Direct Connect
 ----
