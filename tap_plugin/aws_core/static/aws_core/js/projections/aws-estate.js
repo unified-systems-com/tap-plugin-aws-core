@@ -1,6 +1,7 @@
 /**
- * aws-estate — the nested layout behind the /aws pages (req-aws-core-page-dashboard,
- * req-aws-core-page-organization, req-aws-core-page-network).
+ * aws-estate — the nested layout behind the /aws dashboard and network graphs
+ * (req-aws-core-page-dashboard, req-aws-core-page-network). The organization graph has its own
+ * module, aws-organization.js.
  *
  * Whatever the page's searches put in the scene, containment comes only from aws_core's own edges:
  *
