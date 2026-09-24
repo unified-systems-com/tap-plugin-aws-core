@@ -136,6 +136,7 @@ class TestCreate:
 
     def test_organization_partition_and_feature_set_are_closed(self) -> None:
         assert _node(ORG, {"name": "o", "partition": "aws-us-gov", "feature_set": "ALL"}).success
+        assert _node(ORG, {"name": "o", "partition": "aws-cn"}).success
         assert not _node(ORG, {"name": "o", "partition": "gov"}).success
         assert not _node(ORG, {"name": "o", "feature_set": "all"}).success
 

@@ -49,7 +49,7 @@ class AwsOrganization(BaseModel):
         "root_id": {"type": "string", "pattern": "^(r-[0-9a-z]{4,32})?$"},
         "management_account_id": {"type": "string", "pattern": "^([0-9]{12})?$"},
         "feature_set": {"type": "string", "enum": ["", "ALL", "CONSOLIDATED_BILLING"]},
-        "partition": {"type": "string", "enum": ["", "aws", "aws-us-gov"]},
+        "partition": {"type": "string", "enum": ["", "aws", "aws-us-gov", "aws-cn"]},
     }
 
     FIELD_VALIDATION_SCHEMA: ClassVar[dict[str, Any]] = {

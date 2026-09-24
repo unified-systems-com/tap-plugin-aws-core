@@ -391,8 +391,8 @@ every field is one AWS reports so a later collector fills the same fields.
 #### Implementation
 
 - `aws_core__aws_organization`: `name`, `organization_id` (`o-…`), `root_id` (`r-…`),
-  `management_account_id`, `feature_set` (`ALL` / `CONSOLIDATED_BILLING`), `partition` (`aws` /
-  `aws-us-gov`). Source: `organizations:DescribeOrganization` and `ListRoots`; the partition is the
+  `management_account_id`, `feature_set` (`ALL` / `CONSOLIDATED_BILLING`), `partition` (`aws`,
+  `aws-us-gov` or `aws-cn`, the three partitions AWS Organizations runs in). Source: `organizations:DescribeOrganization` and `ListRoots`; the partition is the
   organization ARN's partition segment. An organization has no name in AWS, so `name` is the label
   its author or collector gives it. It carries no `tags`: AWS cannot tag an organization.
   Blank means not observed for every id and enum field on these types, as on
