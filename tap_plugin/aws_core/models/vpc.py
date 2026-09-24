@@ -23,6 +23,18 @@ class Vpc(BaseModel):
         }
     }
 
+    # A subnet exists only inside its VPC, so retiring a VPC retires its subnets
+    # (req-grid-service-delete-cascade; req-aws-core-placement). The cascade stops there: subnets
+    # declare no containment, and VPC-wide resources (security groups, route tables) point at the VPC
+    # with RESIDES_IN_VPC, which a cascade from the VPC cannot follow.
+    # Declaring OUTBOUND_EDGES makes the VPC a constrained source: an edge type from another plugin
+    # that leaves its sources undeclared can no longer start at a VPC. Edge types that list the VPC
+    # (BELONGS_TO_ACCOUNT) or leave the source WILDCARD are unaffected (permission union).
+    OUTBOUND_EDGES: ClassVar[list[dict[str, Any]]] = [
+        {"nodes": [{"type": "aws_core__aws_subnet"}], "edges": [{"type": "PARTITIONED_INTO_SUBNET__aws_core"}]},
+    ]
+    CONTAINMENT_EDGES: ClassVar[tuple[str, ...]] = ("PARTITIONED_INTO_SUBNET__aws_core",)
+
     FIELD_CRUD_SCHEMA: ClassVar[dict[str, Any]] = {
         "name": {"type": "string"},
         "vpc_id": {"type": "string"},

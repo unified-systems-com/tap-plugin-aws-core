@@ -1,0 +1,14 @@
+{
+  "slug": "CONSUMES_ENDPOINT_SERVICE__aws_core",
+  "name": "Consumes Endpoint Service",
+  "description": "An interface VPC endpoint connects to a PrivateLink endpoint service (endpoint -> service): the endpoint's ServiceName names the service. The consumer initiates, and the provider may have to accept (the service's acceptance_required).",
+  "sources": [
+    "aws_core__aws_vpc_endpoint"
+  ],
+  "targets": [
+    "aws_core__aws_vpc_endpoint_service"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}
