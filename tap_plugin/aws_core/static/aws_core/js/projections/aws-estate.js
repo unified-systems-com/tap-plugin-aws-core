@@ -89,9 +89,12 @@ export async function execute(context) {
 
     const types = [...new Set(cy.nodes().map((n) => n.data("entity_type")).filter(Boolean))];
     const residents = _placeResidents(cy);
-    const baseSizes = Object.fromEntries(types.map((t) => [t, CONTAINERS.includes(t) ? {width: 190, height: 90} : GEOM.leaf]));
-    baseSizes[T.subnet] = GEOM.subnet;
-    residents.inSubnet.forEach((t) => { baseSizes[t] = GEOM.resident; });
+    const sizeOf = (t) => {
+        if (t === T.subnet) return GEOM.subnet;
+        if (residents.inSubnet.has(t)) return GEOM.resident;
+        return CONTAINERS.includes(t) ? {width: 190, height: 90} : GEOM.leaf;
+    };
+    const baseSizes = Object.fromEntries(types.map((t) => [t, sizeOf(t)]));
     _stampVpcColumns(cy);
 
     const result = await projectNested(cy, {
@@ -152,18 +155,19 @@ function _edgeType(e) {
  */
 function _placeResidents(cy) {
     cy.edges().filter((e) => e.id().startsWith(PLACED_PREFIX)).remove();
-    const vpcOfSubnet = {};
+    const vpcOfSubnet = new Map();
     cy.edges().forEach((e) => {
-        if (_edgeType(e) === E.partitioned) vpcOfSubnet[e.target().id()] = e.source().id();
+        if (_edgeType(e) === E.partitioned) vpcOfSubnet.set(e.target().id(), e.source().id());
     });
-    const bySource = {};
+    const bySource = new Map();
     cy.edges().forEach((e) => {
         if (_edgeType(e) !== E.residesInSubnet) return;
-        (bySource[e.source().id()] = bySource[e.source().id()] || []).push(e);
+        if (!bySource.has(e.source().id())) bySource.set(e.source().id(), []);
+        bySource.get(e.source().id()).push(e);
     });
     const inSubnet = new Set();
     const redundant = [];
-    Object.entries(bySource).forEach(([sourceId, edges]) => {
+    bySource.forEach((edges, sourceId) => {
         const subnets = [...new Set(edges.map((e) => e.target().id()))];
         let parentId = null;
         if (subnets.length === 1) {
@@ -171,7 +175,7 @@ function _placeResidents(cy) {
             inSubnet.add(cy.getElementById(sourceId).data("entity_type") || "");
             redundant.push(...edges.map((e) => e.id()));
         } else {
-            const vpcs = new Set(subnets.map((s) => vpcOfSubnet[s]));
+            const vpcs = new Set(subnets.map((s) => vpcOfSubnet.get(s)));
             if (vpcs.size === 1 && !vpcs.has(undefined)) parentId = [...vpcs][0];
         }
         if (!parentId) return;
@@ -190,11 +194,13 @@ function _placeResidents(cy) {
  * VPC holds directly in a column to their left.
  */
 function _stampVpcColumns(cy) {
-    const subnetsOf = {};
+    const subnetsOf = new Map();
     cy.edges().forEach((e) => {
-        if (_edgeType(e) === E.partitioned) (subnetsOf[e.source().id()] = subnetsOf[e.source().id()] || []).push(e.target());
+        if (_edgeType(e) !== E.partitioned) return;
+        if (!subnetsOf.has(e.source().id())) subnetsOf.set(e.source().id(), []);
+        subnetsOf.get(e.source().id()).push(e.target());
     });
-    Object.values(subnetsOf).forEach((subnets) => {
+    subnetsOf.forEach((subnets) => {
         const zones = [...new Set(subnets.map((s) => s.data("availability_zone")).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
         subnets.forEach((s) => {
             const zone = s.data("availability_zone");
