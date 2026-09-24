@@ -111,7 +111,8 @@ class TestCreate:
     def test_well_formed_id_is_accepted_and_names_the_node(self, model, key, good, _bad) -> None:
         result = _node(model.ENTITY_TYPE, {"name": "x", key: good})
         assert result.success, result.errors
-        assert model.find_existing(**{key: good}).entity_id == result.entity_id
+        # A plain lookup, not BaseModel.find_existing: the plugin's CI core pin predates that helper.
+        assert model.objects.get(**{key: good}).entity_id == result.entity_id
 
     @pytest.mark.parametrize(("model", "key", "_good", "bad"), TYPES)
     def test_malformed_id_is_refused(self, model, key, _good, bad) -> None:
