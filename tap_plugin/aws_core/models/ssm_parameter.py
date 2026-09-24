@@ -15,6 +15,9 @@ class SsmParameter(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An AWS Systems Manager Parameter Store parameter."
     ENTITY_ICON: ClassVar[str] = "aws-ssm"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The parameter's ARN: a parameter name is unique only
+    # within an account and region.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("parameter_arn",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

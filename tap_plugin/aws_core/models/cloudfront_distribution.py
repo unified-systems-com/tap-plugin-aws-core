@@ -23,6 +23,9 @@ class CloudfrontDistribution(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon CloudFront content delivery distribution."
     ENTITY_ICON: ClassVar[str] = "aws-cloudfront"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The distribution's ARN, the boto3 collector's identity
+    # for it.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("distribution_arn",)
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {
             "shape": "rectangle",
@@ -36,7 +39,7 @@ class CloudfrontDistribution(BaseModel):
         "domain_name": {"type": "string"},
         "status": {"type": "string"},
         "enabled": {"type": "boolean"},
-        "origin_access": {"type": "object", "additionalProperties": {"type": "string", "enum": ["oac", "oai", "none"]}},
+        "origin_access": {"type": ["object", "null"], "additionalProperties": {"type": "string", "enum": ["oac", "oai", "none"]}},
         "origin_custom_headers_present": {"type": ["object", "null"], "additionalProperties": {"type": "boolean"}},
         "configuration": {"type": "object"},
         "tags": {"type": "object"},
@@ -48,7 +51,7 @@ class CloudfrontDistribution(BaseModel):
         "domain_name": {"validation": "jsonschema", "schema": {"type": "string"}},
         "status": {"validation": "jsonschema", "schema": {"type": "string"}},
         "enabled": {"validation": "jsonschema", "schema": {"type": "boolean"}},
-        "origin_access": {"validation": "jsonschema", "schema": {"type": "object", "additionalProperties": {"type": "string", "enum": ["oac", "oai", "none"]}}},
+        "origin_access": {"validation": "jsonschema", "schema": {"type": ["object", "null"], "additionalProperties": {"type": "string", "enum": ["oac", "oai", "none"]}}},
         "origin_custom_headers_present": {"validation": "jsonschema", "schema": {"type": ["object", "null"], "additionalProperties": {"type": "boolean"}}},
         "configuration": {"validation": "jsonschema", "schema": {"type": "object"}},
         "tags": {"validation": "jsonschema", "schema": {"type": "object"}},
@@ -61,15 +64,17 @@ class CloudfrontDistribution(BaseModel):
     status = models.CharField(max_length=64, blank=True, default="")
     enabled = models.BooleanField(default=False)
     # {origin Id: "oac" | "oai" | "none"}: how CloudFront authenticates to each
-    # origin, derived from the ListDistributions origin by the custom_fn
-    # (ruling 2026-09-23 Q44: kept as a typed field because configuration is
-    # not stored for this type). "none" means no OAC or OAI for that origin; it
+    # origin, derived from the ListDistributions origin by the custom_fn. A typed
+    # field because this type's configuration is not stored (origins can carry
+    # shared-secret headers), and without it whether the origin is locked to
+    # CloudFront would be lost. "none" means no OAC or OAI for that origin; it
     # does not mean public, since a custom origin may check a shared-secret
     # header (CustomHeaders), which origin_custom_headers_present records.
-    origin_access = models.JSONField(default=dict, blank=True)
+    # Null means not observed; {} means observed with no origins.
+    origin_access = models.JSONField(null=True, blank=True, default=None)
     # {origin Id: bool}: whether CloudFront sends any custom header to that
     # origin (CustomHeaders), derived from the ListDistributions origin by the
-    # custom_fn (ruling 2026-09-24 Q46). Presence only: a custom origin header
+    # custom_fn. Presence only: a custom origin header
     # is often a shared secret the origin checks, so neither its value nor its
     # name is stored. False is an observed absence; null means the
     # distribution has not been collected since this field was added.

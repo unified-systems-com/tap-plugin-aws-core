@@ -149,7 +149,7 @@ class TestApiGatewayHttpApisDetailed:
         assert api["_integration_lambda_arns"] == [_LAMBDA_ARN]
 
     def test_route_authorization_types_per_route(self):
-        # Ruling 2026-09-23 Q44: which routes require an authorizer, and of
+        # Which routes require an authorizer, and of
         # which type, survives configuration being off as a typed field.
         (api,) = self._collect(_FakeApiGw())
         assert api["_route_authorization_types"] == {

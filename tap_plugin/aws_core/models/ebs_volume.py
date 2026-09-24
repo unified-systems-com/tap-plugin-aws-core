@@ -15,6 +15,9 @@ class EbsVolume(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon EBS block storage volume."
     ENTITY_ICON: ClassVar[str] = "aws-ebs"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The volume ID (vol-…): unique across accounts and
+    # regions.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("volume_id",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

@@ -19,6 +19,9 @@ class ApiGatewayHttpApi(BaseModel):
     )
     ENTITY_ICON: ClassVar[str] = "aws-apigateway"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The API's ARN, the boto3 collector's identity for it
+    # (derived as _api_arn); api_id alone is unique only within a region.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("api_arn",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {
@@ -57,8 +60,9 @@ class ApiGatewayHttpApi(BaseModel):
     protocol_type = models.CharField(max_length=32, blank=True, default="")
     # {RouteKey: AuthorizationType} from GetRoutes: NONE, AWS_IAM, JWT, or
     # CUSTOM (a Lambda authorizer). Null when GetRoutes failed, so a denied
-    # listing never reads as "no open routes". Ruling 2026-09-23 Q44: kept as a
-    # typed field because configuration is not stored for this type.
+    # listing never reads as "no open routes". A typed field because this type's
+    # configuration is not stored (integrations carry credentials), and without
+    # it which routes are open would be lost.
     route_authorization_types = models.JSONField(null=True, blank=True, default=None)
     tags = models.JSONField(default=dict, blank=True)
     configuration = models.JSONField(default=dict, blank=True)

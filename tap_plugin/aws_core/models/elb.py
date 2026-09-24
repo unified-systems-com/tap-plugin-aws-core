@@ -21,6 +21,10 @@ class Elb(BaseModel):
     )
     ENTITY_ICON: ClassVar[str] = "aws-elb"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The DNS name AWS assigns: a Classic Load Balancer has no
+    # ARN, and its name is unique only within an account and region, while the assigned DNS name is
+    # unique.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("dns_name",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

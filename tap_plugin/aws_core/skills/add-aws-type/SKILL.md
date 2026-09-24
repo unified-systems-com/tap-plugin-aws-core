@@ -53,7 +53,8 @@ enumerate op, every `hydrate` op, every call inside the `custom_fn`):
    `reviewed_none_known` — both with a `basis` naming what you read and the date.
 4. If you have not done this, declare `{"status": "unreviewed"}`. That is an
    honest, allowed state, and it forces `"persist_configuration": false` (the
-   schema rejects an unreviewed entry that persists; ruling Q43). Never guess,
+   schema rejects an unreviewed entry that persists: nobody has looked at what
+   it returns, so storing it could store a secret). Never guess,
    and never omit the block.
 
 For an `aws_op` entry, `test_boto3_collector_sensitivity.py` fails if any
@@ -64,7 +65,7 @@ exist in the shape. A `custom_fn` entry is checked only by your reading.
 `configuration` is stored** (`req-aws-collector-field-projection-7`).
 
 - If `sensitivity.status` is `unreviewed`, the flag is `false`. The schema
-  rejects `true` (`req-aws-collector-manifest-7`, ruling Q43).
+  rejects `true` (`req-aws-collector-manifest-7`).
 - If `sensitivity` lists any `credential` location, set
   `"persist_configuration": false`, and make the reason name the location:
   `"Off: <Op> returns <path> verbatim, and <why that is a credential>."`
@@ -77,7 +78,8 @@ exist in the shape. A `custom_fn` entry is checked only by your reading.
   the type needs is read back from the stored blob: typed fields, tags and edges
   are always derived from the in-memory envelope, so they are unaffected.
 
-**STOP and ask the requester before choosing the flag** (ruling Q43), when
+**STOP and ask the requester before choosing the flag** (whoever asked for the
+type owns the risk of storing what it returns), when
 adding or updating an entry and any of these is true:
 
 - (a) the status would be `unreviewed`;

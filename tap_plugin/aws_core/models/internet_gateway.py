@@ -15,6 +15,9 @@ class InternetGateway(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon VPC internet gateway."
     ENTITY_ICON: ClassVar[str] = "aws-internet-gateway"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The internet gateway ID (igw-…): unique across accounts
+    # and regions.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("igw_id",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

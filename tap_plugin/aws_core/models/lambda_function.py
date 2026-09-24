@@ -15,6 +15,9 @@ class LambdaFunction(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An AWS Lambda serverless function."
     ENTITY_ICON: ClassVar[str] = "aws-lambda"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The function's ARN, the boto3 collector's identity for
+    # it.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("function_arn",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {
@@ -30,8 +33,8 @@ class LambdaFunction(BaseModel):
         "handler": {"type": "string"},
         "memory_size": {"type": ["integer", "null"]},
         "timeout": {"type": ["integer", "null"]},
-        "vpc_subnet_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
-        "vpc_security_group_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "vpc_subnet_ids": {"type": ["array", "null"], "items": {"type": "string", "minLength": 1}},
+        "vpc_security_group_ids": {"type": ["array", "null"], "items": {"type": "string", "minLength": 1}},
         "configuration": {"type": "object"},
         "tags": {"type": "object"},
     }
@@ -43,8 +46,8 @@ class LambdaFunction(BaseModel):
         "handler": {"validation": "jsonschema", "schema": {"type": "string"}},
         "memory_size": {"validation": "jsonschema", "schema": {"type": ["integer", "null"]}},
         "timeout": {"validation": "jsonschema", "schema": {"type": ["integer", "null"]}},
-        "vpc_subnet_ids": {"validation": "jsonschema", "schema": {"type": "array", "items": {"type": "string", "minLength": 1}}},
-        "vpc_security_group_ids": {"validation": "jsonschema", "schema": {"type": "array", "items": {"type": "string", "minLength": 1}}},
+        "vpc_subnet_ids": {"validation": "jsonschema", "schema": {"type": ["array", "null"], "items": {"type": "string", "minLength": 1}}},
+        "vpc_security_group_ids": {"validation": "jsonschema", "schema": {"type": ["array", "null"], "items": {"type": "string", "minLength": 1}}},
         "configuration": {"validation": "jsonschema", "schema": {"type": "object"}},
         "tags": {"validation": "jsonschema", "schema": {"type": "object"}},
     }
@@ -56,11 +59,14 @@ class LambdaFunction(BaseModel):
     handler = models.CharField(max_length=255, blank=True, default="")
     memory_size = models.IntegerField(blank=True, null=True)
     timeout = models.IntegerField(blank=True, null=True)
-    # VPC attachment, from ListFunctions VpcConfig.SubnetIds / SecurityGroupIds
-    # (ruling 2026-09-23 Q44: kept as typed fields because configuration is not
-    # stored for this type). Both empty means the function is not in a VPC.
-    vpc_subnet_ids = models.JSONField(default=list, blank=True)
-    vpc_security_group_ids = models.JSONField(default=list, blank=True)
+    # VPC attachment, from ListFunctions VpcConfig.SubnetIds / SecurityGroupIds.
+    # Typed fields because this type's configuration is not stored (its
+    # environment variables routinely hold credentials), and without them the
+    # VPC attachment, a network-exposure fact, would be lost. Null means not
+    # observed; both [] means observed and not in a VPC (the collector writes []
+    # when VpcConfig is absent).
+    vpc_subnet_ids = models.JSONField(null=True, blank=True, default=None)
+    vpc_security_group_ids = models.JSONField(null=True, blank=True, default=None)
     configuration = models.JSONField(default=dict, blank=True)
     tags = models.JSONField(default=dict, blank=True)
 

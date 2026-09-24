@@ -18,6 +18,9 @@ class CognitoUserPool(BaseModel):
     )
     ENTITY_ICON: ClassVar[str] = "aws-cognito"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The user pool ID, the boto3 collector's identity for it
+    # (region-prefixed, for example us-gov-west-1_Ab12).
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("pool_id",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

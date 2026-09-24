@@ -15,6 +15,9 @@ class ElasticacheCluster(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon ElastiCache cluster (Redis or Memcached)."
     ENTITY_ICON: ClassVar[str] = "aws-elasticache"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The cluster's ARN: the cluster ID is chosen by its owner
+    # and unique only within an account and region.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("cluster_arn",)
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {
             "shape": "rectangle",
@@ -25,6 +28,7 @@ class ElasticacheCluster(BaseModel):
     FIELD_CRUD_SCHEMA: ClassVar[dict[str, Any]] = {
         "name": {"type": "string", "minLength": 1},
         "cluster_id": {"type": "string"},
+        "cluster_arn": {"type": "string"},
         "engine": {"type": "string"},
         "engine_version": {"type": "string"},
         "node_type": {"type": "string"},
@@ -36,6 +40,7 @@ class ElasticacheCluster(BaseModel):
     FIELD_VALIDATION_SCHEMA: ClassVar[dict[str, Any]] = {
         "name": {"validation": "jsonschema", "schema": {"type": "string", "minLength": 1}},
         "cluster_id": {"validation": "jsonschema", "schema": {"type": "string"}},
+        "cluster_arn": {"validation": "jsonschema", "schema": {"type": "string"}},
         "engine": {"validation": "jsonschema", "schema": {"type": "string"}},
         "engine_version": {"validation": "jsonschema", "schema": {"type": "string"}},
         "node_type": {"validation": "jsonschema", "schema": {"type": "string"}},
@@ -47,6 +52,8 @@ class ElasticacheCluster(BaseModel):
 
     name = models.CharField(max_length=255, blank=True, default="")
     cluster_id = models.CharField(max_length=255, blank=True, default="", db_index=True)
+    # The cluster's ARN (ARN in DescribeCacheClusters), its identity across accounts and regions. Blank until observed.
+    cluster_arn = models.CharField(max_length=512, blank=True, default="", db_index=True)
     engine = models.CharField(max_length=32, blank=True, default="")
     engine_version = models.CharField(max_length=64, blank=True, default="")
     node_type = models.CharField(max_length=64, blank=True, default="")

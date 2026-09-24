@@ -15,6 +15,9 @@ class Ec2Instance(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon EC2 virtual server instance."
     ENTITY_ICON: ClassVar[str] = "aws-ec2"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The instance ID (i-…): unique across accounts and
+    # regions.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("instance_id",)
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {
             "shape": "rectangle",

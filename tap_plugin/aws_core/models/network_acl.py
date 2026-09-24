@@ -15,6 +15,9 @@ class NetworkAcl(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon VPC network access control list."
     ENTITY_ICON: ClassVar[str] = "aws-network-acl"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The network ACL ID (acl-…): unique across accounts and
+    # regions.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("network_acl_id",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

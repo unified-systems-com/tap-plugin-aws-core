@@ -15,6 +15,9 @@ class RouteTable(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon VPC route table."
     ENTITY_ICON: ClassVar[str] = "aws-route-table"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The route table ID (rtb-…): unique across accounts and
+    # regions.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("route_table_id",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

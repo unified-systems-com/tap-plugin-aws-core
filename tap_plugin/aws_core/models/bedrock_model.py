@@ -15,6 +15,9 @@ class BedrockModel(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon Bedrock foundation model."
     ENTITY_ICON: ClassVar[str] = "aws-bedrock"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The foundation model ID. It names the model, not a
+    # deployment, so the same model reached from two regions is one node.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("model_id",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

@@ -25,6 +25,9 @@ class IamOidcProvider(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "A federated OpenID Connect identity provider registered in AWS IAM."
     ENTITY_ICON: ClassVar[str] = "aws-iam"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The provider's ARN, the boto3 collector's identity for
+    # it.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("provider_arn",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

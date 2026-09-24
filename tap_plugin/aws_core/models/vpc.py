@@ -15,6 +15,8 @@ class Vpc(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon Virtual Private Cloud."
     ENTITY_ICON: ClassVar[str] = "aws-vpc"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The VPC ID (vpc-…): unique across accounts and regions.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("vpc_id",)
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {
             "shape": "round-rectangle",

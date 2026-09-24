@@ -15,6 +15,9 @@ class NetworkFirewall(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An AWS Network Firewall."
     ENTITY_ICON: ClassVar[str] = "aws-network-firewall"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The firewall's ARN: a firewall name is unique only
+    # within an account and region.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("firewall_arn",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

@@ -15,6 +15,9 @@ class Subnet(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "A subnet within an Amazon VPC."
     ENTITY_ICON: ClassVar[str] = "aws-subnet"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The subnet ID (subnet-…): unique across accounts and
+    # regions.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("subnet_id",)
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {
             "shape": "round-rectangle",
