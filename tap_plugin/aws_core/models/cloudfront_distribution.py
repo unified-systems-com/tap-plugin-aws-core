@@ -37,6 +37,7 @@ class CloudfrontDistribution(BaseModel):
         "status": {"type": "string"},
         "enabled": {"type": "boolean"},
         "origin_access": {"type": "object", "additionalProperties": {"type": "string", "enum": ["oac", "oai", "none"]}},
+        "origin_custom_headers_present": {"type": ["object", "null"], "additionalProperties": {"type": "boolean"}},
         "configuration": {"type": "object"},
         "tags": {"type": "object"},
     }
@@ -48,6 +49,7 @@ class CloudfrontDistribution(BaseModel):
         "status": {"validation": "jsonschema", "schema": {"type": "string"}},
         "enabled": {"validation": "jsonschema", "schema": {"type": "boolean"}},
         "origin_access": {"validation": "jsonschema", "schema": {"type": "object", "additionalProperties": {"type": "string", "enum": ["oac", "oai", "none"]}}},
+        "origin_custom_headers_present": {"validation": "jsonschema", "schema": {"type": ["object", "null"], "additionalProperties": {"type": "boolean"}}},
         "configuration": {"validation": "jsonschema", "schema": {"type": "object"}},
         "tags": {"validation": "jsonschema", "schema": {"type": "object"}},
     }
@@ -63,8 +65,15 @@ class CloudfrontDistribution(BaseModel):
     # (ruling 2026-09-23 Q44: kept as a typed field because configuration is
     # not stored for this type). "none" means no OAC or OAI for that origin; it
     # does not mean public, since a custom origin may check a shared-secret
-    # header (CustomHeaders), which this field does not record.
+    # header (CustomHeaders), which origin_custom_headers_present records.
     origin_access = models.JSONField(default=dict, blank=True)
+    # {origin Id: bool}: whether CloudFront sends any custom header to that
+    # origin (CustomHeaders), derived from the ListDistributions origin by the
+    # custom_fn (ruling 2026-09-24 Q46). Presence only: a custom origin header
+    # is often a shared secret the origin checks, so neither its value nor its
+    # name is stored. False is an observed absence; null means the
+    # distribution has not been collected since this field was added.
+    origin_custom_headers_present = models.JSONField(null=True, blank=True, default=None)
     configuration = models.JSONField(default=dict, blank=True)
     tags = models.JSONField(default=dict, blank=True)
 

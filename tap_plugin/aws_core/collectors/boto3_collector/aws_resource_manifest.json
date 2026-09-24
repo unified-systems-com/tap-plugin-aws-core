@@ -299,7 +299,7 @@
       "source": { "custom_fn": "cloudfront_distributions_with_oac" },
       "why": "Enumerate CloudFront distributions — CDN/edge entry points and their origins. Each origin's Origin Access Control (OAC) is resolved and embedded in configuration.",
       "persist_configuration": false,
-      "persist_configuration_why": "Off: ListDistributions returns Origins.Items[].CustomHeaders.Items[].HeaderValue verbatim, and custom origin headers are commonly a shared secret between CloudFront and the origin. Ruling 2026-09-23 (Q40). Each origin's access mode (OAC, OAI or none) is kept as the typed field origin_access (Q44).",
+      "persist_configuration_why": "Off: ListDistributions returns Origins.Items[].CustomHeaders.Items[].HeaderValue verbatim, and custom origin headers are commonly a shared secret between CloudFront and the origin. Ruling 2026-09-23 (Q40). Each origin's access mode (OAC, OAI or none) is kept as the typed field origin_access (Q44). Whether each origin is sent any custom header is kept as the typed field origin_custom_headers_present, a boolean per origin: presence only, never the header value or name (Q46).",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore cloudfront ListDistributions (DistributionSummary) and GetOriginAccessControl output shapes and custom_fn cloudfront_distributions_with_oac, 2026-09-23.",
@@ -307,7 +307,7 @@
           {
             "path": "Origins.Items[].CustomHeaders.Items[].HeaderValue",
             "category": "credential",
-            "reason": "Custom origin headers are the usual way to hold a shared secret the origin checks (for example an origin-verify header).",
+            "reason": "Custom origin headers are the usual way to hold a shared secret the origin checks (for example an origin-verify header). Only their presence per origin is recorded, as the typed field origin_custom_headers_present; the value is never stored, and neither is the name (ruling 2026-09-24 Q46).",
             "evidence": "botocore_sensitive"
           },
           {
@@ -338,7 +338,8 @@
         "domain_name": "DomainName",
         "status": "Status",
         "enabled": "Enabled",
-        "origin_access": "_origin_access"
+        "origin_access": "_origin_access",
+        "origin_custom_headers_present": "_origin_custom_headers_present"
       },
       "tags": {
         "source": "service",
