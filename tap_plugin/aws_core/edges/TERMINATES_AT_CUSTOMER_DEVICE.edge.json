@@ -1,0 +1,11 @@
+{
+  "slug": "TERMINATES_AT_CUSTOMER_DEVICE__aws_core",
+  "name": "Terminates At Customer Device",
+  "description": "A Direct Connect connection's customer end lands on a router or other device outside AWS, in a colocation facility or on premises (connection -> device). The target is WILDCARD (omitted): aws_core does not model on-premises equipment, and the device is whatever node another plugin (or a design) uses for it.",
+  "sources": [
+    "aws_core__aws_dx_connection"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}

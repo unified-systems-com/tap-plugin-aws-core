@@ -1,0 +1,14 @@
+{
+  "slug": "ATTACHED_TO_DX_GATEWAY__aws_core",
+  "name": "Attached To DX Gateway",
+  "description": "A private or transit Direct Connect virtual interface is attached to a Direct Connect gateway (VIF -> gateway): the VIF's directConnectGatewayId. The `_TO` is the locative preposition of 'attached to'.",
+  "sources": [
+    "aws_core__aws_dx_virtual_interface"
+  ],
+  "targets": [
+    "aws_core__aws_dx_gateway"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}

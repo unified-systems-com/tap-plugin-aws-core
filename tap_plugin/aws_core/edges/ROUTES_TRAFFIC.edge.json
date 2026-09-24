@@ -1,12 +1,13 @@
 {
   "slug": "ROUTES_TRAFFIC__aws_core",
   "name": "Routes Traffic",
-  "description": "Route table, load balancer, or DNS zone routes traffic to a target.",
+  "description": "Route table, load balancer, DNS zone, or PrivateLink endpoint service routes traffic to a target. An endpoint service forwards the traffic its consumers send to the Network or Gateway Load Balancer behind it.",
   "sources": [
     "aws_core__aws_route_table",
     "aws_core__aws_alb",
     "aws_core__aws_elb",
-    "aws_core__aws_route53_zone"
+    "aws_core__aws_route53_zone",
+    "aws_core__aws_vpc_endpoint_service"
   ],
   "property_schema": {
     "type": "object",

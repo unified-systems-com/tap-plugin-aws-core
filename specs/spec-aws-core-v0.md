@@ -33,6 +33,11 @@ v0 is intentionally scoped to the "meat and potatoes" AWS resources common to mo
 | req-aws-core-organizations | [Organizations Tree](#organizations-tree) | Implemented | Organization (as its own root), OU and SCP design vocabulary; the tree and SCP attachment edges |
 | req-aws-core-identity-center | [IAM Identity Center](#iam-identity-center) | Implemented | Identity Center instance design vocabulary and its open edge to an external identity provider |
 | req-aws-core-transit-gateway | [Transit Gateway](#transit-gateway) | Implemented | Transit gateway and attachment design vocabulary; attachment, VPC and peering edges |
+| req-aws-core-placement | [Resource Placement](#resource-placement) | Implemented | Account, VPC and subnet placement edges; a VPC contains its subnets |
+| req-aws-core-direct-connect | [Direct Connect](#direct-connect) | Implemented | Connection, DX gateway and virtual interface design vocabulary; the TGW association reuses the attachment |
+| req-aws-core-privatelink | [PrivateLink](#privatelink) | Implemented | Endpoint service and VPC endpoint design vocabulary |
+| req-aws-core-dns-firewall | [Route 53 Resolver DNS Firewall](#route-53-resolver-dns-firewall) | Implemented | Rule group with typed domain-list summary; VPC association edge |
+| req-aws-core-private-ca | [ACM Private CA](#acm-private-ca) | Implemented | Private CA design vocabulary and the issuer edge |
 | req-aws-core-page-dashboard | [AWS Pages](#aws-pages) | Implemented | `/aws`: count tiles, the estate as one picture, accounts per OU, boundary scope |
 | req-aws-core-page-organization | [AWS Pages](#aws-pages) | Implemented | `/aws/organization`: the OU tree, SCP attachments, boundary scope, Identity Center |
 | req-aws-core-page-network | [AWS Pages](#aws-pages) | Implemented | `/aws/network`: transit gateways, attachments, gateways, firewalls, Direct Connect |
@@ -55,10 +60,10 @@ The plugin covers:
 - container infrastructure (ECR)
 - storage (S3, EBS)
 - databases (RDS, DynamoDB, ElastiCache, Elasticsearch/OpenSearch)
-- networking (VPC, Subnet, Security Group, Network ACL, Internet Gateway, NAT Gateway, Elastic IP, Route Table, ALB, ELB, Target Group, Route 53, Network Firewall, Transit Gateway, Transit Gateway Attachment)
+- networking (VPC, Subnet, Security Group, Network ACL, Internet Gateway, NAT Gateway, Elastic IP, Route Table, ALB, ELB, Target Group, Route 53, Network Firewall, Transit Gateway, Transit Gateway Attachment, Direct Connect connection / gateway / virtual interface, VPC endpoint and endpoint service, Route 53 Resolver DNS Firewall rule group)
 - identity and access (IAM User, IAM Role, IAM Policy, IAM OIDC Provider, IAM Identity Center instance)
 - organization structure (Organization, Organizational Unit, Service Control Policy)
-- security and configuration (ACM Certificate, Secrets Manager, SSM Parameter Store)
+- security and configuration (ACM Certificate, ACM Private CA, Secrets Manager, SSM Parameter Store)
 - AI services (Bedrock, SageMaker)
 - infrastructure reference (Region, Availability Zone, Account)
 
@@ -98,8 +103,8 @@ drifts on every model added; the manifest + validator own "which models exist").
 | Containers | EcrRepository |
 | Storage | S3Bucket, EbsVolume |
 | Database | RdsInstance, DynamoDbTable, ElasticsearchDomain, ElasticacheCluster |
-| Networking | Vpc, Subnet, SecurityGroup, NetworkAcl, InternetGateway, NatGateway, ElasticIp, RouteTable, Alb, Elb, TargetGroup, Route53HostedZone, NetworkFirewall, CloudfrontDistribution, TransitGateway, TransitGatewayAttachment |
-| Identity/Security | IamUser, IamRole, IamPolicy, AcmCertificate, SecretsManagerSecret, SsmParameter, AwsIdentityCenterInstance |
+| Networking | Vpc, Subnet, SecurityGroup, NetworkAcl, InternetGateway, NatGateway, ElasticIp, RouteTable, Alb, Elb, TargetGroup, Route53HostedZone, NetworkFirewall, CloudfrontDistribution, TransitGateway, TransitGatewayAttachment, DxConnection, DxGateway, DxVirtualInterface, VpcEndpointService, VpcEndpoint, Route53ResolverFirewallRuleGroup |
+| Identity/Security | IamUser, IamRole, IamPolicy, AcmCertificate, SecretsManagerSecret, SsmParameter, AwsIdentityCenterInstance, AcmPrivateCa |
 | AI | BedrockModel, SagemakerEndpoint |
 | Observability | CloudwatchLogGroup |
 | Integration | EventbridgeRule |
@@ -204,10 +209,10 @@ The categories (representative; the manifest is the canonical, enforced list):
 
 | Category | Edge Types | Description |
 | --- | --- | --- |
-| Structural | DIVIDED_INTO_AZ, NESTED_UNDER_PARENT | Region → availability zone reference topology (parent→child); the Organizations tree (child→parent) |
-| Network attachment | ATTACHED_TO_TRANSIT_GATEWAY, ATTACHES_VPC, PEERS_WITH_TRANSIT_GATEWAY | A transit gateway attachment to its gateway, its VPC, or its peer gateway |
+| Structural | DIVIDED_INTO_AZ, NESTED_UNDER_PARENT, BELONGS_TO_ACCOUNT, RESIDES_IN_VPC, PARTITIONED_INTO_SUBNET, RESIDES_IN_SUBNET, ATTACHED_TO_VPC | Region → availability zone reference topology (parent→child); the Organizations tree (child→parent) |
+| Network attachment | ATTACHED_TO_TRANSIT_GATEWAY, ATTACHES_VPC, PEERS_WITH_TRANSIT_GATEWAY, ATTACHES_DX_GATEWAY, CARRIED_ON_CONNECTION, ATTACHED_TO_DX_GATEWAY, TERMINATES_AT_CUSTOMER_DEVICE, CONSUMES_ENDPOINT_SERVICE | Transit gateway attachments, Direct Connect, and PrivateLink |
 | Operational | INVOKES_LAMBDA, ROUTES_TRAFFIC, WRITES_LOGS, RETRIEVES_CONTENT_FROM, RETRIEVES_CERT_FROM | Runtime actions, traffic, and data retrieval (`_FROM` = data-backwards) |
-| Access/Security | ASSUMES_ROLE, FEDERATES_INTO_ROLE, ATTACHED_TO_TARGET, TRUSTS_IDENTITY_SOURCE | IAM role assumption and federated identity; SCP attachment; Identity Center's external identity provider |
+| Access/Security | ASSUMES_ROLE, FEDERATES_INTO_ROLE, ATTACHED_TO_TARGET, TRUSTS_IDENTITY_SOURCE, FILTERS_VPC_DNS, ISSUED_BY_CA | IAM role assumption and federated identity; SCP attachment; Identity Center's external identity provider |
 
 Edge types use explicit `sources` and `targets` constraints where the relationship is well-defined (e.g. `ASSUMES_ROLE` from IAM users/roles, Lambda functions, and EventBridge rules to IAM roles; `RETRIEVES_CONTENT_FROM` from CloudFront distributions to S3 buckets). Where one end is genuinely open, only the other is constrained (e.g. `INVOKES_LAMBDA` fixes its target to `aws_lambda` and leaves the source open).
 
@@ -582,6 +587,173 @@ entity id.
   edges for design data (the pending `IN_ACCOUNT` / `IN_VPC` / `IN_SUBNET` vocabulary).
 - Replace the dx text panel with a table of connections, virtual interfaces and Direct Connect gateways
   once those types exist.
+
+### Resource Placement
+----
+RID: `req-aws-core-placement`
+
+Status: `Implemented`
+
+Edges that say which account owns a resource, which VPC holds a VPC-wide resource, and which subnet
+a networked resource sits in, so a page can nest account → VPC → subnet → resource from real edges.
+
+#### Implementation
+
+- `BELONGS_TO_ACCOUNT` (resource → `aws_account`): ownership, one relationship over every
+  account-owned aws_core type. The sources are listed, so a new type is added on purpose. Excluded:
+  region, AZ, the account itself, the Organizations types (their placement is
+  `NESTED_UNDER_PARENT`) and Bedrock foundation models, which AWS owns.
+- `RESIDES_IN_VPC` (security group, network ACL, route table, target group, VPC endpoint → VPC):
+  VPC-wide resources that are not placed in a subnet. A gateway-type VPC endpoint has no subnet.
+- `PARTITIONED_INTO_SUBNET` (VPC → subnet): the one containment edge.
+- `RESIDES_IN_SUBNET` (EC2 instance, Lambda, ECS service and task, EKS cluster, RDS, ElastiCache,
+  OpenSearch, NAT gateway, ALB, ELB, network firewall, VPC endpoint, SageMaker endpoint → subnet):
+  one edge per subnet. A resource in subnets reaches its VPC through the subnet, so its VPC is never
+  recorded twice.
+- `ATTACHED_TO_VPC` (internet gateway → VPC): kept apart from `RESIDES_IN_VPC` because an internet
+  gateway exists on its own and can be detached and attached elsewhere.
+- **Delete tree.** Only `PARTITIONED_INTO_SUBNET` is containment, declared on `Vpc` through
+  `CONTAINMENT_EDGES` and `OUTBOUND_EDGES`. A subnet exists only inside its VPC. The cascade stops at
+  the subnet, which declares nothing. VPC-wide resources point child → VPC, and a cascade cannot
+  follow an inbound edge, so they stay live, with their edge ended. Account ownership is a
+  reference, not containment: a RAM-shared resource is used from other accounts, and an account's
+  subtree can exceed `TAP_CASCADE_MAX_CLOSURE`. Containment takes effect only on a core that
+  implements `req-grid-service-delete-cascade`. On the plugin's floor core, the declaration is inert.
+- **VPC becomes a constrained source.** `OUTBOUND_EDGES` on `Vpc` means an edge type whose sources
+  are undeclared can no longer start at a VPC. Edge types that list the VPC, or leave the source
+  WILDCARD, are unaffected (permission union). No shipped grift has an edge out of a VPC.
+- **How a collector derives them later** (no collector change in this PR; collector changes are
+  additive and separate): from the raw item, not from typed fields, which these resource models
+  mostly do not carry. `BELONGS_TO_ACCOUNT` comes from the item's owner field (`OwnerId`,
+  `OwnerAccountId`, `ownerAccount`), falling back to the run's account. `RESIDES_IN_VPC` comes from
+  `VpcId`. `PARTITIONED_INTO_SUBNET` comes from the subnet's `VpcId`. `RESIDES_IN_SUBNET` comes from
+  `SubnetId` or each entry of the item's subnet list. `ATTACHED_TO_VPC` comes from
+  `Attachments[].VpcId`. These are manifest `edges` entries like the existing ones.
+
+#### Acceptance Criteria
+
+| ACID | Title | Status | Description | Notes |
+| --- | --- | :---: | --- | --- |
+| req-aws-core-placement-1 | Account Ownership Edge | Implemented | `BELONGS_TO_ACCOUNT` declares every account-owned aws_core type as a source and `aws_account` as its target, and excludes region, AZ, account, the Organizations types and Bedrock models. | |
+| req-aws-core-placement-2 | VPC And Subnet Placement | Implemented | `RESIDES_IN_VPC`, `RESIDES_IN_SUBNET` and `ATTACHED_TO_VPC` declare the pairs above and no others; a subnet-placed resource is not a `RESIDES_IN_VPC` source. | |
+| req-aws-core-placement-3 | VPC Contains Its Subnets | Implemented | `Vpc.CONTAINMENT_EDGES == ("PARTITIONED_INTO_SUBNET__aws_core",)`; a contained cascade from a VPC retires its subnets and leaves a security group that `RESIDES_IN_VPC` live. | Cascade test skips on a core without `cascade`. |
+| req-aws-core-placement-4 | Owner Not Duplicated | Implemented | The network-plane types added with these edges carry no `owner_account_id`; ownership is the edge. | The transit gateway types keep the AWS-reported owner field from `req-aws-core-transit-gateway`. |
+
+### Direct Connect
+----
+RID: `req-aws-core-direct-connect`
+
+Status: `Implemented`
+
+Design vocabulary for AWS Direct Connect, so the network page can draw the full path from the
+customer router to a transit gateway.
+
+#### Implementation
+
+- `aws_core__aws_dx_connection`: `name`, `connection_id` (`dxcon-…`), `location` (the DX location
+  code), `bandwidth` (AWS's string, e.g. `10Gbps`), `is_hosted` (null until observed), `region`,
+  `tags`. Source: `directconnect:DescribeConnections` / `DescribeHostedConnections`.
+- `aws_core__aws_dx_gateway`: `name`, `direct_connect_gateway_id` (a UUID), `amazon_side_asn` (AWS's
+  two private ranges, or null). Source: `DescribeDirectConnectGateways`. It is global, so it has no
+  region. It has no tags, because that call returns none.
+- `aws_core__aws_dx_virtual_interface`: `name`, `virtual_interface_id` (`dxvif-…`),
+  `virtual_interface_type` (`private` / `public` / `transit`), `vlan` (1-4094), `customer_asn` (AWS's
+  `asn`: the customer side), `region`, `tags`. Source: `DescribeVirtualInterfaces`.
+- `CARRIED_ON_CONNECTION` (VIF → connection) and `ATTACHED_TO_DX_GATEWAY` (VIF → DX gateway).
+- **DX gateway ↔ transit gateway reuses the attachment.** AWS represents a DX gateway association on
+  the transit gateway side as a transit gateway attachment of resource type
+  `direct-connect-gateway`, with its own `tgw-attach-…` id. So the association is that
+  `aws_transit_gateway_attachment` node: `ATTACHED_TO_TRANSIT_GATEWAY` to the gateway, and the new
+  `ATTACHES_DX_GATEWAY` to the DX gateway. A direct DX-gateway-to-TGW edge would record the same fact
+  a second time.
+- **The customer end is open.** `TERMINATES_AT_CUSTOMER_DEVICE` (connection → WILDCARD) points at
+  whatever node represents the customer's router or colocation device. aws_core does not model
+  on-premises equipment.
+
+#### Acceptance Criteria
+
+| ACID | Title | Status | Description | Notes |
+| --- | --- | :---: | --- | --- |
+| req-aws-core-direct-connect-1 | Keyed On AWS Ids | Implemented | Connection, gateway and VIF declare `NATURAL_KEY` on `connection_id`, `direct_connect_gateway_id` and `virtual_interface_id`; each validates against AWS's id shape or is blank. | |
+| req-aws-core-direct-connect-2 | Typed Fields | Implemented | Bandwidth pattern, VIF type enum, VLAN 1-4094, and the DX gateway's ASN limited to AWS's private ranges. | |
+| req-aws-core-direct-connect-3 | Edges | Implemented | `CARRIED_ON_CONNECTION`, `ATTACHED_TO_DX_GATEWAY` and `ATTACHES_DX_GATEWAY` declare the pairs above; `TERMINATES_AT_CUSTOMER_DEVICE` leaves its target open. | |
+
+### PrivateLink
+----
+RID: `req-aws-core-privatelink`
+
+Status: `Implemented`
+
+The provider and consumer sides of AWS PrivateLink: how tenants reach highbar privately.
+
+#### Implementation
+
+- `aws_core__aws_vpc_endpoint_service`: `name`, `service_id` (`vpce-svc-…`), `service_name`,
+  `acceptance_required`, `private_dns_name`, `region`, `tags`. Source:
+  `ec2:DescribeVpcEndpointServiceConfigurations`.
+- `aws_core__aws_vpc_endpoint`: `name`, `vpc_endpoint_id` (`vpce-…`), `endpoint_type` (AWS's enum),
+  `service_name`, `private_dns_enabled`, `region`, `tags`. Source: `ec2:DescribeVpcEndpoints`.
+- `CONSUMES_ENDPOINT_SERVICE` (endpoint → endpoint service), for an endpoint whose service is a
+  modelled PrivateLink service. An AWS-service endpoint (for example S3) is recorded only in
+  `service_name`.
+- The service's load balancer **reuses `ROUTES_TRAFFIC`**, with the endpoint service added as a
+  source. The service forwards consumer traffic to the NLB or GWLB behind it, which is the same
+  relationship a load balancer or route table already records with that edge.
+
+#### Acceptance Criteria
+
+| ACID | Title | Status | Description | Notes |
+| --- | --- | :---: | --- | --- |
+| req-aws-core-privatelink-1 | Keyed On AWS Ids | Implemented | Endpoint service and endpoint declare `NATURAL_KEY` on `service_id` and `vpc_endpoint_id`. | |
+| req-aws-core-privatelink-2 | Consumer Edge | Implemented | `CONSUMES_ENDPOINT_SERVICE` declares endpoint → endpoint service only. | |
+| req-aws-core-privatelink-3 | Provider Routing Reuses ROUTES_TRAFFIC | Implemented | The endpoint service is a `ROUTES_TRAFFIC` source. | |
+
+### Route 53 Resolver DNS Firewall
+----
+RID: `req-aws-core-dns-firewall`
+
+Status: `Implemented`
+
+#### Implementation
+
+- `aws_core__aws_route53_resolver_firewall_rule_group`: `name`, `rule_group_id` (`rslvr-frg-…`),
+  `rule_count`, `block_domain_lists`, `allow_domain_lists`, `alert_domain_lists`, `region`, `tags`.
+  The rules are summarised as typed name lists, one per action, with no rule blob. Source:
+  `route53resolver:ListFirewallRules` (`FirewallDomainListId`, `Action`) joined to
+  `GetFirewallDomainList` (`Name`; AWS-managed lists keep AWS's name).
+- `FILTERS_VPC_DNS` (rule group → VPC), one per `FirewallRuleGroupAssociation`, with
+  `additionalProperties: false` properties `priority` (100-9900) and `mutation_protection`, both from
+  `AssociateFirewallRuleGroup`.
+
+#### Acceptance Criteria
+
+| ACID | Title | Status | Description | Notes |
+| --- | --- | :---: | --- | --- |
+| req-aws-core-dns-firewall-1 | Keyed On AWS Id | Implemented | The rule group declares `NATURAL_KEY = ("rule_group_id",)`. | |
+| req-aws-core-dns-firewall-2 | Typed Rule Summary | Implemented | Domain lists are arrays of non-empty name strings per action; no rule or domain blob. | |
+| req-aws-core-dns-firewall-3 | Association Edge | Implemented | `FILTERS_VPC_DNS` declares rule group → VPC and validates `priority` and `mutation_protection`, refusing any other property. | |
+
+### ACM Private CA
+----
+RID: `req-aws-core-private-ca`
+
+Status: `Implemented`
+
+#### Implementation
+
+- `aws_core__aws_acm_private_ca`: `name`, `ca_arn`, `ca_type` (`ROOT` / `SUBORDINATE`),
+  `key_algorithm`, `status`, `usage_mode` (all AWS's enums), `subject_common_name`, `tags`. Source:
+  `acm-pca:DescribeCertificateAuthority`.
+- `ISSUED_BY_CA` (subordinate CA or ACM certificate → issuing private CA): the CA chain for the
+  `pki` account, and which private CA issued an ACM private certificate (`CertificateAuthorityArn`).
+
+#### Acceptance Criteria
+
+| ACID | Title | Status | Description | Notes |
+| --- | --- | :---: | --- | --- |
+| req-aws-core-private-ca-1 | Keyed On CA ARN | Implemented | The CA declares `NATURAL_KEY = ("ca_arn",)`; the ARN validates against the acm-pca shape or is blank. | |
+| req-aws-core-private-ca-2 | Typed Enums | Implemented | CA type, key algorithm, status and usage mode are AWS's enums (blank = not observed). | |
+| req-aws-core-private-ca-3 | Issuer Edge | Implemented | `ISSUED_BY_CA` declares private CA or ACM certificate → private CA. | |
 
 ### v0 Non-Goals
 ----

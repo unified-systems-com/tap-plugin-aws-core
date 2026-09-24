@@ -1,0 +1,30 @@
+{
+  "slug": "FILTERS_VPC_DNS__aws_core",
+  "name": "Filters VPC DNS",
+  "description": "A Route 53 Resolver DNS Firewall rule group filters the DNS queries of a VPC (rule group -> VPC): one edge per FirewallRuleGroupAssociation. The association's priority orders rule groups within the VPC, and mutation protection blocks changes to it; both are properties from AssociateFirewallRuleGroup.",
+  "sources": [
+    "aws_core__aws_route53_resolver_firewall_rule_group"
+  ],
+  "targets": [
+    "aws_core__aws_vpc"
+  ],
+  "property_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "priority": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 9900,
+        "description": "The association's Priority: lower evaluates first among rule groups on the VPC (AssociateFirewallRuleGroup)."
+      },
+      "mutation_protection": {
+        "type": "boolean",
+        "description": "The association's MutationProtection is ENABLED (AssociateFirewallRuleGroup)."
+      }
+    }
+  },
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}
