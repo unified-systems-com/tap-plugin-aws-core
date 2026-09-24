@@ -6,15 +6,15 @@
   "batches": [
     {
       "batch_entity": {
-        "entity_id": "01a0d4f6-5e11-75b1-a612-9439c352cfa2",
+        "entity_id": "01a0d501-d542-71ce-a924-33e8a72b9846",
         "entity_type": "batch",
-        "name": "aws_core pages v0.2.0",
+        "name": "aws_core pages v0.3.0",
         "dimensions": {}
       },
       "batch_node": {
         "source": "tap_plugin.aws_core.grift.pages",
-        "name": "aws_core pages v0.2.0",
-        "description": "aws_core's reusable pages (req-aws-core-page-dashboard, -organization, -network): /aws, a dashboard of count tiles, the estate as one picture and two tables; /aws/organization, the OU tree placed by layout tags, with SCP attachments and account placement; /aws/network, transit gateways, attachments, gateways, firewalls and Direct Connect. Every search reads whatever AWS nodes the grid holds: nothing here names a deployment. The children nest under /aws by URL. The graphs share one layout module (aws-estate.js) and the tiles are the aws-counts panel type. v0.2.0 (George, 2026-09-24): the organization graph draws the OU tree only, laid out by aws-organization.js from the nodes' layout:* tags; its scoped, scp and idp searches are gone (on an existing grid, retire those three search nodes: a batch cannot remove a node)."
+        "name": "aws_core pages v0.3.0",
+        "description": "aws_core's reusable pages (req-aws-core-page-dashboard, -organization, -network): /aws, a dashboard of count tiles, the estate as one picture and two tables; /aws/organization, the OU tree placed by layout tags, with SCP attachments and account placement; /aws/network, transit gateways, attachments, gateways, firewalls and Direct Connect. Every search reads whatever AWS nodes the grid holds: nothing here names a deployment. The children nest under /aws by URL. The graphs share one layout module (aws-estate.js) and the tiles are the aws-counts panel type. v0.2.0 (George, 2026-09-24): the organization graph draws the OU tree only, laid out by aws-organization.js from the nodes' layout:* tags; its scoped, scp and idp searches are gone (on an existing grid, retire those three search nodes: a batch cannot remove a node). v0.3.0 (George, 2026-09-24): the network graph nests each VPC's subnets in it, one column per availability zone, with its internet gateway beside them and a NAT gateway inside its subnet, from PARTITIONED_INTO_SUBNET, ATTACHED_TO_VPC and RESIDES_IN_SUBNET; a subnets table lists each VPC's subnets with zone and CIDR."
       },
       "nodes": [
         {
@@ -663,7 +663,7 @@
           "node": {
             "name": "AWS network",
             "slug": "aws-net-graph",
-            "description": "The network plane: each transit gateway around its attachments, a line from every VPC attachment to its VPC, peering attachments to their peer gateway, and the VPCs' internet gateways, NAT gateways and network firewalls. A VPC with no attachment is not on any transit gateway (a tenant VPC, or a public front door).",
+            "description": "The network plane: each transit gateway around its attachments, a line from every VPC attachment to its VPC; each VPC around its subnets (one column per availability zone, public subnets on top) with its internet gateway beside them; a NAT gateway inside the one subnet it sits in, and a resource spread over several subnets (a network firewall's endpoints) inside the VPC with a line to each. A VPC with no attachment is not on any transit gateway (a tenant VPC, or a public front door).",
             "view": "tap_viz/panels/graph_panel.html",
             "config": {
               "height": "100%",
@@ -723,7 +723,7 @@
           },
           "node": {
             "name": "AWS network layout",
-            "description": "aws-estate.js: nests the organisation tree on NESTED_UNDER_PARENT and each transit gateway's attachments on ATTACHED_TO_TRANSIT_GATEWAY; every other edge is a line; roots stack in bands (organisation, transit, VPCs and gateways, policies, boundaries, outside systems).",
+            "description": "aws-estate.js: nests each transit gateway's attachments on ATTACHED_TO_TRANSIT_GATEWAY, each VPC's subnets on PARTITIONED_INTO_SUBNET and its internet gateway on ATTACHED_TO_VPC, and what resides in one subnet inside it; every other edge is a line; roots stack in bands.",
             "definition": {
               "js_file": "tap_plugin/aws_core/static/aws_core/js/projections/aws-estate.js"
             }
@@ -738,13 +738,13 @@
           },
           "node": {
             "name": "aws — AWS network nodes",
-            "description": "Every transit gateway, attachment, VPC, internet gateway, NAT gateway and network firewall on the grid.",
+            "description": "Every transit gateway, attachment, VPC, subnet, internet gateway, NAT gateway and network firewall on the grid.",
             "search_type": "gryphon",
             "root": "node",
             "definition": {
               "query": [
                 "MATCH (n)",
-                "WHERE n.entity_type IN [\"aws_core__aws_transit_gateway\", \"aws_core__aws_transit_gateway_attachment\", \"aws_core__aws_vpc\", \"aws_core__aws_internet_gateway\", \"aws_core__aws_nat_gateway\", \"aws_core__aws_network_firewall\"]",
+                "WHERE n.entity_type IN [\"aws_core__aws_transit_gateway\", \"aws_core__aws_transit_gateway_attachment\", \"aws_core__aws_vpc\", \"aws_core__aws_subnet\", \"aws_core__aws_internet_gateway\", \"aws_core__aws_nat_gateway\", \"aws_core__aws_network_firewall\"]",
                 "RETURN n"
               ]
             }
@@ -949,7 +949,7 @@
             "view": "tap_web/panels/text_panel.html",
             "description": "Direct Connect connections, virtual interfaces and gateways into a transit gateway.",
             "config": {
-              "text": "No Direct Connect connection is on the grid. When one is, this section lists each connection, its virtual interfaces and the Direct Connect gateway associated with a transit gateway. (aws_core's Direct Connect types are not released yet.)"
+              "text": "No Direct Connect connection is on the grid. When one is, this section lists each connection, its virtual interfaces and the Direct Connect gateway associated with a transit gateway."
             }
           }
         },
@@ -966,7 +966,7 @@
             "name": "Network",
             "slug": "/aws/network",
             "nav_weight": 220,
-            "description": "The AWS network plane: transit gateways and their VPC attachments, the VPCs' internet gateways, NAT gateways and network firewalls, and Direct Connect.",
+            "description": "The AWS network plane: transit gateways and their VPC attachments, each VPC's subnets by zone, the VPCs' internet gateways, NAT gateways and network firewalls, and Direct Connect.",
             "layout": {
               "full_bleed": true,
               "columns": {
@@ -982,16 +982,153 @@
                       "height": "auto"
                     },
                     "row-3": {
-                      "panel-id": "igw",
+                      "panel-id": "subnets",
                       "height": "auto"
                     },
                     "row-4": {
+                      "panel-id": "igw",
+                      "height": "auto"
+                    },
+                    "row-5": {
                       "panel-id": "dx",
                       "height": "auto"
                     }
                   }
                 }
               }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d501-d542-7157-89e0-c4d3d21ff695",
+            "entity_type": "search",
+            "name": "aws — AWS network subnets",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS network subnets",
+            "description": "Each VPC and the subnets it is partitioned into.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a:aws_core__aws_vpc)-[:PARTITIONED_INTO_SUBNET__aws_core]->(b:aws_core__aws_subnet)",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d501-d542-7ead-b7be-3838853c7da2",
+            "entity_type": "search",
+            "name": "aws — AWS network gateways",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS network gateways",
+            "description": "Each internet gateway and the VPC it is attached to.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a:aws_core__aws_internet_gateway)-[:ATTACHED_TO_VPC__aws_core]->(b:aws_core__aws_vpc)",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d501-d542-75d1-8431-9212102924ff",
+            "entity_type": "search",
+            "name": "aws — AWS network residents",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS network residents",
+            "description": "Each NAT gateway and network firewall and the subnets it sits in.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a)-[:RESIDES_IN_SUBNET__aws_core]->(b:aws_core__aws_subnet)",
+                "WHERE a.entity_type IN [\"aws_core__aws_nat_gateway\", \"aws_core__aws_network_firewall\"]",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d501-d542-7f90-b4bd-2b8f5d5d4d43",
+            "entity_type": "panel",
+            "name": "Subnets",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "Subnets",
+            "slug": "aws-subnets",
+            "description": "Every subnet a VPC is partitioned into: the VPC, the subnet, its availability zone, CIDR and whether it is public. Blank CIDRs are not yet assigned.",
+            "view": "tap_web/panels/table_panel.html",
+            "config": {
+              "default_page_size": 25,
+              "columns": [
+                {
+                  "field": "vpc",
+                  "title": "VPC",
+                  "header_tooltip": "The VPC the subnet partitions.",
+                  "widthGrow": 2
+                },
+                {
+                  "field": "subnet",
+                  "title": "Subnet",
+                  "header_tooltip": "The subnet.",
+                  "widthGrow": 2
+                },
+                {
+                  "field": "zone",
+                  "title": "Availability zone",
+                  "header_tooltip": "The subnet's availability zone.",
+                  "widthGrow": 1
+                },
+                {
+                  "field": "cidr",
+                  "title": "CIDR",
+                  "header_tooltip": "The subnet's CIDR block; blank until assigned.",
+                  "widthGrow": 1
+                },
+                {
+                  "field": "public",
+                  "title": "Public",
+                  "header_tooltip": "Whether the subnet routes to an internet gateway.",
+                  "width": 100
+                }
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d501-d542-714f-a4d8-eafd9cc4088d",
+            "entity_type": "search",
+            "name": "aws — Subnets",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — Subnets",
+            "description": "Every subnet a VPC is partitioned into: the VPC, the subnet, its availability zone, CIDR and whether it is public. Blank CIDRs are not yet assigned.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (v:aws_core__aws_vpc)-[:PARTITIONED_INTO_SUBNET__aws_core]->(s:aws_core__aws_subnet)",
+                "RETURN v.name AS vpc, s.name AS subnet, s.data.availability_zone AS zone, s.data.cidr_block AS cidr, s.data.public AS public",
+                "ORDER BY vpc, zone, subnet"
+              ]
             }
           }
         }
@@ -1673,6 +1810,82 @@
                 "model": "page",
                 "spec": "page-panels",
                 "value": "dx"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d501-d542-77c7-aa8b-88c55b076179",
+            "entity_type": "edge",
+            "name": "AWS network panel USES_SEARCH subnets",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f47c-70f0-8cb3-b1a2bcf90883",
+            "to_entity_id": "01a0d501-d542-7157-89e0-c4d3d21ff695",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d501-d542-753e-aced-74bc5b8215ad",
+            "entity_type": "edge",
+            "name": "AWS network panel USES_SEARCH gateways",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f47c-70f0-8cb3-b1a2bcf90883",
+            "to_entity_id": "01a0d501-d542-7ead-b7be-3838853c7da2",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d501-d542-71ff-a7d1-5f358bc17f63",
+            "entity_type": "edge",
+            "name": "AWS network panel USES_SEARCH residents",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f47c-70f0-8cb3-b1a2bcf90883",
+            "to_entity_id": "01a0d501-d542-75d1-8431-9212102924ff",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d501-d542-7acd-87eb-7e278827c200",
+            "entity_type": "edge",
+            "name": "Subnets USES_SEARCH",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d501-d542-7f90-b4bd-2b8f5d5d4d43",
+            "to_entity_id": "01a0d501-d542-714f-a4d8-eafd9cc4088d",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d501-d542-7b10-b0b7-de0ebb7b3342",
+            "entity_type": "edge",
+            "name": "Network page USES_PANEL subnets",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-faf2-772c-8669-99ee76d8302e",
+            "to_entity_id": "01a0d501-d542-7f90-b4bd-2b8f5d5d4d43",
+            "edge_type": "USES_PANEL",
+            "properties": {
+              "hotlink": {
+                "model": "page",
+                "spec": "page-panels",
+                "value": "subnets"
               }
             }
           }

@@ -40,7 +40,7 @@ v0 is intentionally scoped to the "meat and potatoes" AWS resources common to mo
 | req-aws-core-private-ca | [ACM Private CA](#acm-private-ca) | Implemented | Private CA design vocabulary and the issuer edge |
 | req-aws-core-page-dashboard | [AWS Pages](#aws-pages) | Implemented | `/aws`: count tiles, the estate as one picture, accounts per OU, boundary scope |
 | req-aws-core-page-organization | [AWS Pages](#aws-pages) | Implemented | `/aws/organization`: the OU tree as nested boxes, SCP attachments, account placement |
-| req-aws-core-page-network | [AWS Pages](#aws-pages) | Implemented | `/aws/network`: transit gateways, attachments, gateways, firewalls, Direct Connect |
+| req-aws-core-page-network | [AWS Pages](#aws-pages) | Implemented | `/aws/network`: transit gateways, attachments, VPCs around their subnets, gateways, firewalls, Direct Connect |
 | req-aws-core-panel-counts | [AWS Pages](#aws-pages) | Implemented | The `aws-counts` panel type: count tiles over the estate |
 | req-aws-core-layout-hints | [AWS Pages](#aws-pages) | Implemented | Placement read from a node's own `layout:*` tags, never its name or id |
 | req-aws-core-nongoals | [v0 Non-Goals](#v0-non-goals) | Proposed | Explicitly deferred concerns |
@@ -554,10 +554,11 @@ entity id.
   its parent). Policies, boundaries and Identity Center stay in the tables and on `/aws`; drawing
   them as lines across the tree made it unreadable (George, 2026-09-24).
 - `/aws/network` (**Network**): `plane` (graph: each transit gateway around its attachments, a line
-  from each VPC attachment to its VPC, peering attachments to their peer, VPCs, internet and NAT
-  gateways, firewalls), `attachments` (gateway, attachment, VPC, CIDR), `igw` (every internet
-  gateway), `dx` (Direct Connect: a text panel until aws_core carries Direct Connect types; it says
-  plainly that no connection is on the grid).
+  from each VPC attachment to its VPC, peering attachments to their peer; each VPC around its subnets
+  and its internet gateway; NAT gateways and network firewalls placed by `RESIDES_IN_SUBNET`),
+  `attachments` (gateway, attachment, VPC, CIDR), `subnets` (VPC, subnet, availability zone, CIDR,
+  public), `igw` (every internet gateway), `dx` (Direct Connect: a text panel that says plainly that
+  no connection is on the grid; the table of connections is future work).
 - Layout module `static/aws_core/js/projections/aws-organization.js` (the organization graph): nests
   on `NESTED_UNDER_PARENT` only. The organization lays its children out in columns and each OU lays
   its children out in one row, both from the nodes' layout tags (below); with no tags it still
@@ -571,9 +572,16 @@ entity id.
   from whatever seeds or collects the node.
 - Layout module `static/aws_core/js/projections/aws-estate.js`, shared by the dashboard and network graphs: nests on
   `NESTED_UNDER_PARENT` (organization and OU around their children), `ATTACHED_TO_TRANSIT_GATEWAY`
-  (a gateway around its attachments) and the collector's `aws_account` dimension (an account around
-  what was collected in it); every other edge is a line; roots stack in bands. Nothing is placed by
-  name or id. Standard icon-badge node style.
+  (a gateway around its attachments), `PARTITIONED_INTO_SUBNET` (a VPC around its subnets),
+  `ATTACHED_TO_VPC` (a VPC around its internet gateway) and the collector's `aws_account` dimension
+  (an account around what was collected in it). A `RESIDES_IN_SUBNET` source in exactly one subnet of
+  the scene nests in that subnet and its line is hidden; one in several subnets of a single VPC (a
+  network firewall's per-zone endpoints) nests in the VPC and keeps a line to each subnet. The
+  derivation is a `_PLACED_IN` scene edge the module adds and removes itself (the shadow-nodes
+  pattern); it is never stored. Inside a VPC, subnets stand in one column per availability zone (the
+  subnet's `availability_zone`, zones in name order), public subnets first, then by label; what the
+  VPC holds directly stands in a column to their left. Every other edge is a line; roots stack in
+  bands. Nothing is placed by name or id. Standard icon-badge node style.
 - Panel type `aws-counts` (`panels/counts/__init__.py`, `templates/aws_core/panels/counts.html`,
   `static/aws_core/css/counts.css`), registered in `AppConfig.ready()`. `config.tiles` picks tiles
   from a fixed catalogue (default all): accounts, OUs, SCPs, VPCs, internet gateways, internet-facing
@@ -592,17 +600,18 @@ entity id.
 | req-aws-core-layout-hints-1 | Order And Column From Tags | Implemented | Siblings are placed by `layout:order`, and under the organization by `layout:column`; a node's name and id are never read for placement. | Observed on the highbar dev grid, 2026-09-24. |
 | req-aws-core-layout-hints-2 | Fill To Lane | Implemented | A `layout:fill` box widens to its column's widest sibling when it shares a column, else to the rest of its row. | Observed on the highbar dev grid, 2026-09-24. |
 | req-aws-core-page-network-1 | Network Page Seeded | Implemented | `/aws/network` exists, mounts plane, attachments, igw and dx, and its breadcrumb parent is `/aws`. | |
-| req-aws-core-page-network-2 | Direct Connect Stated, Not Invented | Implemented | With no Direct Connect vocabulary or data, the dx section says no connection is on the grid; it draws no placeholder site. | |
+| req-aws-core-page-network-2 | Direct Connect Stated, Not Invented | Implemented | With no Direct Connect data, the dx section says no connection is on the grid; it draws no placeholder site. | |
+| req-aws-core-page-network-3 | VPCs Hold Their Subnets | Implemented | The plane nests each subnet in the VPC that `PARTITIONED_INTO_SUBNET` it, in its availability zone's column, and each internet gateway in the VPC it is `ATTACHED_TO_VPC`; a resource in one subnet nests in it, a resource in several subnets of one VPC nests in the VPC with a line to each. | `tests/test_network_page_bundle.py` (scene searches); layout observed on the highbar dev grid, 2026-09-24. |
+| req-aws-core-page-network-4 | Subnets Table | Implemented | `/aws/network` mounts `subnets`, one row per subnet a VPC is partitioned into, with zone, CIDR and public. | `tests/test_network_page_bundle.py`; observed on the highbar dev grid, 2026-09-24. |
 | req-aws-core-panel-counts-1 | Counts Fold Purely | Implemented | Tiles fold from Gryphon envelopes by pure functions; a failed read renders "read failed", never 0. | `tests/test_counts_panel.py` |
 | req-aws-core-panel-counts-2 | Design Marked | Implemented | A tile whose counted nodes are all dcom=design is marked design. | `tests/test_counts_panel.py` |
 | req-aws-core-panel-counts-3 | Boundary Membership Follows The Tree | Implemented | An account counts inside a boundary when it or an OU above it at any depth is scoped to the boundary. | `tests/test_counts_panel.py` |
 
 #### Future
 
-- Nest designed VPCs, gateways and services in their accounts once aws_core carries containment
-  edges for design data (the pending `IN_ACCOUNT` / `IN_VPC` / `IN_SUBNET` vocabulary).
-- Replace the dx text panel with a table of connections, virtual interfaces and Direct Connect gateways
-  once those types exist.
+- Nest VPCs in their accounts on the network graph from `BELONGS_TO_ACCOUNT` (`req-aws-core-placement`).
+- Replace the dx text panel with a table of connections, virtual interfaces and Direct Connect
+  gateways (`req-aws-core-direct-connect`) once a grid holds one.
 
 ### Resource Placement
 ----

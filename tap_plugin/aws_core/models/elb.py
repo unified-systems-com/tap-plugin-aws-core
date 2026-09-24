@@ -1,4 +1,4 @@
-"""ELB — an Amazon Classic Load Balancer."""
+"""ELB — an Elastic Load Balancer that is not an ALB: classic, network or gateway."""
 
 from typing import Any, ClassVar
 
@@ -8,11 +8,17 @@ from tap_grid.models import BaseModel
 
 
 class Elb(BaseModel):
-    """An Amazon Classic Load Balancer."""
+    """An Elastic Load Balancer that is not an ALB.
+
+    A Classic, Network or Gateway Load Balancer, told apart by ``lb_type``.
+    """
 
     ENTITY_TYPE: ClassVar[str] = "aws_core__aws_elb"
-    ENTITY_NAME: ClassVar[str] = "Classic Load Balancer"
-    ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon Classic Load Balancer (ELB)."
+    ENTITY_NAME: ClassVar[str] = "Load Balancer"
+    ENTITY_DESCRIPTION: ClassVar[str] = (
+        "An Elastic Load Balancer that is not an ALB: a Classic, Network or Gateway "
+        "Load Balancer, told apart by lb_type."
+    )
     ENTITY_ICON: ClassVar[str] = "aws-elb"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
 
