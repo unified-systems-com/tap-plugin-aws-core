@@ -15,6 +15,9 @@ class Route53HostedZone(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon Route 53 DNS hosted zone."
     ENTITY_ICON: ClassVar[str] = "aws-route53"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The hosted zone ID, the boto3 collector's identity for
+    # it.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("hosted_zone_id",)
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {
             "shape": "rectangle",

@@ -15,6 +15,9 @@ class AcmCertificate(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An AWS Certificate Manager TLS/SSL certificate."
     ENTITY_ICON: ClassVar[str] = "aws-acm"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The certificate's ARN, the boto3 collector's identity
+    # for it (CertificateArn).
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("certificate_arn",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

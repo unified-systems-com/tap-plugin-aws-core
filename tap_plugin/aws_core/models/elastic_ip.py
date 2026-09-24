@@ -15,6 +15,11 @@ class ElasticIp(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon VPC elastic IP address."
     ENTITY_ICON: ClassVar[str] = "aws-elastic-ip"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The allocation ID (eipalloc-…); the public IP is
+    # reassignable, so it is not the key. AWS assigns it, but does not document it as unique across
+    # accounts and regions, so a clash there would surface as AmbiguousIdentity from the generated
+    # search, never as a silent merge. The key moves to the ARN if a collector records one.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("allocation_id",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

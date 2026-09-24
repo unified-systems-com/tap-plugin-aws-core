@@ -224,8 +224,7 @@ lane — they are declared as `customer_content`, and a test enforces it for eve
 entry on those lanes. The `rgta` lane's tags come from the per-run sweep, not the
 item.
 
-**Sensitivity and persistence.** Unreviewed means not stored (ruling
-2026-09-23, Q43): an entry whose `sensitivity.status` is `unreviewed` must set
+**Sensitivity and persistence.** Unreviewed means not stored: an entry whose `sensitivity.status` is `unreviewed` must set
 `persist_configuration: false`. Nobody has looked at the response shape, so
 nothing supports storing it. The manifest schema carries the rule as an
 `if`/`then` on the entry, so `load_manifest()` rejects an unreviewed entry that
@@ -240,8 +239,8 @@ location defaults to `persist_configuration: false`, and its
 `persist_configuration_why` names the credential location. An entry that lists a
 `credential` location and is persisted anyway is a **known, reviewed risk**: that
 is only allowed with a reason that names every such location, so the acceptance
-is visible where the decision is made. As shipped there are none — Lambda (Q38)
-and CloudFront, API Gateway HTTP API and Cognito user pool (Q40) are off, and a
+is visible where the decision is made. As shipped there are none — Lambda
+and CloudFront, API Gateway HTTP API and Cognito user pool are off, and a
 test fails if any credential-bearing entry is persisted. The canonical `tags`
 model field is persisted independently ([Resource Tags](#resource-tags)) and is
 not governed by `persist_configuration`.
@@ -256,7 +255,7 @@ not governed by `persist_configuration`.
 | req-aws-collector-manifest-4 | Versioned | Approved for Development | The manifest carries a version recorded in the GRIFT batch provenance. | Supports drift tracking. |
 | req-aws-collector-manifest-5 | Self-Describing Entries | Approved for Development | Each entry carries a `why`, and each `hydrate` element a `{key, op, why}`; the schema requires `why` so every collected call's rationale is authorable and visible in the manifest. | Materialized per-node (`_source`) so a grid object is legible without the manifest, for every entry that persists its configuration (`req-aws-collector-field-projection-7`). |
 | req-aws-collector-manifest-6 | Response Sensitivity Declared | Approved for Development | Every entry declares `sensitivity` in one of three states (`unreviewed`, `reviewed_none_known`, `reviewed_may_contain`); a missing declaration fails schema validation; `reviewed_may_contain` lists `{path, category, reason, evidence}` locations. | Ruling 2026-09-23. Credential locations default the entry to not persisting (see `req-aws-collector-field-projection-7`). `tests/test_boto3_collector_sensitivity.py`. |
-| req-aws-collector-manifest-7 | Unreviewed Is Not Stored | Approved for Development | An entry whose `sensitivity.status` is `unreviewed` has `persist_configuration: false`; the manifest schema rejects an unreviewed entry that persists, so the manifest fails load. | Ruling 2026-09-23 Q43. Enforced in `aws_resource_manifest.schema.json` (entry `allOf`). `tests/test_boto3_collector_sensitivity.py::TestSchema::test_unreviewed_entry_that_persists_is_rejected`. |
+| req-aws-collector-manifest-7 | Unreviewed Is Not Stored | Approved for Development | An entry whose `sensitivity.status` is `unreviewed` has `persist_configuration: false`; the manifest schema rejects an unreviewed entry that persists, so the manifest fails load. | Enforced in `aws_resource_manifest.schema.json` (entry `allOf`). `tests/test_boto3_collector_sensitivity.py::TestSchema::test_unreviewed_entry_that_persists_is_rejected`. |
 
 ### Source Primitive
 ----
@@ -393,7 +392,7 @@ Two engine rules keep the blob stable across runs:
   false History entries, protecting the "re-run live in the demo" and
   audit-evidence properties.
 
-**Per-entry configuration persistence (rulings 2026-09-23, Q38 and Q40).**
+**Per-entry configuration persistence (decided 2026-09-23).**
 `configuration` does two jobs: it is the raw boto3 response kept as future audit
 evidence, and it is where everything that does not fit a typed field lives —
 hydrate posture (`_hydrate`: S3 encryption, versioning, public-access block,
@@ -415,7 +414,7 @@ hydrate-gap warnings and edges are derived identically; a `false` entry emits
 `configuration: {}`. `{}` is sent explicitly, not omitted, so the replace on
 import is deterministic — a resource stored before its entry was turned off has
 its configuration replaced with `{}` the next time it is collected. No migration
-and no model change. History rows are left as they are (ruling Q39: the data so
+and no model change. History rows are left as they are (the data so
 far is synthetic or drawn from open repositories).
 
 Off, as shipped, each with a reason naming the credential location:
@@ -426,7 +425,7 @@ Off, as shipped, each with a reason naming the credential location:
 four types the grid holds only typed fields, tags and edges; nothing downstream
 reads the stored blob. Every other entry persists its full configuration.
 
-**Security facts kept as typed fields (ruling 2026-09-23, Q44a).** Turning
+**Security facts kept as typed fields.** Turning
 storage off for those types dropped three security facts that had lived only in
 the stored blob. Each is now a typed field, derived from data the collector
 already fetches (no new AWS call), so it survives with configuration `{}`:
@@ -435,7 +434,7 @@ already fetches (no new AWS call), so it survives with configuration `{}`:
 | --- | --- | --- | --- |
 | `aws_core__aws_lambda` | `vpc_subnet_ids`, `vpc_security_group_ids` | `ListFunctions` `VpcConfig.SubnetIds[]` / `VpcConfig.SecurityGroupIds[]` | Lists of ids; both `[]` means the function is not in a VPC. |
 | `aws_core__aws_cloudfront_distribution` | `origin_access` | `ListDistributions` origins, derived by `cloudfront_distributions_with_oac` as `_origin_access` | `{origin Id: "oac" \| "oai" \| "none"}`: a non-empty `OriginAccessControlId` is `oac`, a non-empty `S3OriginConfig.OriginAccessIdentity` is `oai`, neither is `none`. `none` means only "no OAC or OAI". It does not mean the origin is public: a custom origin may still check a shared-secret header (`CustomHeaders`, the credential location that keeps this type off), whose presence `origin_custom_headers_present` records. |
-| `aws_core__aws_cloudfront_distribution` | `origin_custom_headers_present` | `ListDistributions` origins, derived by `cloudfront_distributions_with_oac` as `_origin_custom_headers_present` | `{origin Id: bool}`: `true` when `CustomHeaders.Items` is non-empty or `CustomHeaders.Quantity` is positive, otherwise `false`, an observed absence. **Presence only, never the value** (ruling 2026-09-24, Q46): a header value is the credential that keeps this type off, and the header name is not kept either. `null` only on a row not collected since migration 0008. |
+| `aws_core__aws_cloudfront_distribution` | `origin_custom_headers_present` | `ListDistributions` origins, derived by `cloudfront_distributions_with_oac` as `_origin_custom_headers_present` | `{origin Id: bool}`: `true` when `CustomHeaders.Items` is non-empty or `CustomHeaders.Quantity` is positive, otherwise `false`, an observed absence. **Presence only, never the value**: a header value is the credential that keeps this type off, and the header name is not kept either. `null` only on a row not collected since migration 0008. |
 | `aws_core__aws_apigateway_http_api` | `route_authorization_types` | `GetRoutes`, derived by `apigateway_http_apis_detailed` as `_route_authorization_types` | `{RouteKey: AuthorizationType}`, AWS's values passed through: `NONE`, `AWS_IAM`, `JWT`, or `CUSTOM` (a Lambda authorizer); a route that omits it is `NONE`, the AWS default. `null` when `GetRoutes` failed, so a denied listing never reads as "no open routes". |
 
 These are fields, not edges. `aws_core` has no Lambda-to-subnet or
@@ -443,7 +442,7 @@ Lambda-to-security-group edge type, and it does not collect subnets or security
 groups, so an edge to them would be dropped by the v0 fence
 (`req-aws-collector-edges-6`). Nothing else from those types' responses is
 promoted; `aws_core__aws_cognito_user_pool` gains no field.
-`origin_custom_headers_present` was added later under ruling 2026-09-24 (Q46)
+`origin_custom_headers_present` was added later (2026-09-24)
 and is the one field here read from a credential location: it records that a
 custom origin header exists, never what it says.
 
@@ -461,9 +460,9 @@ custom origin header exists, never what it says.
 | req-aws-collector-field-projection-4 | No Silent Coercion | Approved for Development | Values are passed through; model/service-layer validation is the sole gate. | |
 | req-aws-collector-field-projection-5 | One Canonical Timestamp | Approved for Development | All date input shapes normalize at collection into one ISO 8601 UTC envelope field; "created/updated after X" is one query, never per-resource spelunking. | Grid-native time is the always-present spine; AWS-source time is null where AWS omits it. |
 | req-aws-collector-field-projection-6 | Reserved Keys & Stable Blob | Approved for Development | `_source`/`_hydrate`/`_hydrate_mapping` are engine-reserved (not authored jsonpath targets); `ResponseMetadata` stripped; deterministic serialization ⇒ unchanged resource = byte-identical `configuration`. | Protects idempotent upsert + History/FLIP. Reserved keys are in-memory only for an entry whose `persist_configuration` is false. |
-| req-aws-collector-field-projection-7 | Per-Entry Configuration Persistence | Approved for Development | Each manifest entry's required `persist_configuration` boolean and non-empty `persist_configuration_why` decide whether the emitted node payload carries the in-memory envelope or `{}`; typed fields, tags and edges are unchanged either way; an entry with a `credential` sensitivity location defaults to false; an `unreviewed` entry is always false (`req-aws-collector-manifest-7`); no model field is removed and no migration is written. | Rulings 2026-09-23 Q38, Q40. `tests/test_boto3_collector_batch.py`, `tests/test_boto3_collector_slice.py::test_credential_canary_is_not_persisted`, `::test_s3_bucket_persists_its_configuration_with_posture`, `tests/test_boto3_collector_sensitivity.py`. |
-| req-aws-collector-field-projection-8 | Off-Type Security Facts Kept | Approved for Development | For entries whose `persist_configuration` is false, the Lambda VPC attachment (`vpc_subnet_ids`, `vpc_security_group_ids`), CloudFront per-origin access mode (`origin_access`) and API Gateway HTTP API per-route authorization type (`route_authorization_types`) are typed fields derived from data already fetched; configuration stays `{}`. | Ruling 2026-09-23 Q44a. Migration 0007. `tests/test_boto3_collector_slice.py::test_promoted_security_facts_land_while_configuration_stays_empty`, `tests/test_boto3_collector_customfns.py::TestCloudfrontDistributionsWithOac::test_origin_access_mode_per_origin`, `tests/test_boto3_collector_new_service_types.py::TestApiGatewayHttpApisDetailed`. |
-| req-aws-collector-field-projection-9 | CloudFront Origin Header Presence | Approved for Development | Each CloudFront origin's custom-header presence is the typed field `origin_custom_headers_present` (`{origin Id: bool}`), derived from the `ListDistributions` origin with no extra call; an origin without headers is `false`, not absent or `null`; no header value or name reaches the field, the GRIFT batch, the stored row or its history. | Ruling 2026-09-24 Q46. Migration 0008 (additive `AddField` only). `tests/test_boto3_collector_slice.py::test_origin_header_presence_lands_and_the_value_never_does`, `tests/test_boto3_collector_customfns.py::TestCloudfrontDistributionsWithOac::test_custom_header_presence_per_origin`. |
+| req-aws-collector-field-projection-7 | Per-Entry Configuration Persistence | Approved for Development | Each manifest entry's required `persist_configuration` boolean and non-empty `persist_configuration_why` decide whether the emitted node payload carries the in-memory envelope or `{}`; typed fields, tags and edges are unchanged either way; an entry with a `credential` sensitivity location defaults to false; an `unreviewed` entry is always false (`req-aws-collector-manifest-7`); no model field is removed and no migration is written. | `tests/test_boto3_collector_batch.py`, `tests/test_boto3_collector_slice.py::test_credential_canary_is_not_persisted`, `::test_s3_bucket_persists_its_configuration_with_posture`, `tests/test_boto3_collector_sensitivity.py`. |
+| req-aws-collector-field-projection-8 | Off-Type Security Facts Kept | Approved for Development | For entries whose `persist_configuration` is false, the Lambda VPC attachment (`vpc_subnet_ids`, `vpc_security_group_ids`), CloudFront per-origin access mode (`origin_access`) and API Gateway HTTP API per-route authorization type (`route_authorization_types`) are typed fields derived from data already fetched; configuration stays `{}`. | Migration 0007. `tests/test_boto3_collector_slice.py::test_promoted_security_facts_land_while_configuration_stays_empty`, `tests/test_boto3_collector_customfns.py::TestCloudfrontDistributionsWithOac::test_origin_access_mode_per_origin`, `tests/test_boto3_collector_new_service_types.py::TestApiGatewayHttpApisDetailed`. |
+| req-aws-collector-field-projection-9 | CloudFront Origin Header Presence | Approved for Development | Each CloudFront origin's custom-header presence is the typed field `origin_custom_headers_present` (`{origin Id: bool}`), derived from the `ListDistributions` origin with no extra call; an origin without headers is `false`, not absent or `null`; no header value or name reaches the field, the GRIFT batch, the stored row or its history. | Migration 0008 (additive `AddField` only). `tests/test_boto3_collector_slice.py::test_origin_header_presence_lands_and_the_value_never_does`, `tests/test_boto3_collector_customfns.py::TestCloudfrontDistributionsWithOac::test_custom_header_presence_per_origin`. |
 
 ### Deterministic Identity
 ----

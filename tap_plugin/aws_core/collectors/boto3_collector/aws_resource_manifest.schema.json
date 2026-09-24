@@ -54,7 +54,7 @@
           "items": { "$ref": "#/$defs/edge_rule" }
         },
         "persist_configuration": {
-          "description": "Whether the collector persists this entry's configuration envelope (the enumerate item, custom_fn and hydrate additions, and the engine-reserved _source/_hydrate keys) into the node's configuration field. False emits configuration {} for every node of this type; typed fields, tags and edges are derived from the in-memory envelope either way. Rulings 2026-09-23 (Q38, Q40): decided per entry, never globally; an entry with a credential sensitivity location defaults to false, and an unreviewed entry must be false (Q43, enforced by this entry's allOf). See req-aws-collector-field-projection-7.",
+          "description": "Whether the collector persists this entry's configuration envelope (the enumerate item, custom_fn and hydrate additions, and the engine-reserved _source/_hydrate keys) into the node's configuration field. False emits configuration {} for every node of this type; typed fields, tags and edges are derived from the in-memory envelope either way. Decided per entry, never globally, because whether a response holds secrets depends on the API that returned it; an entry with a credential sensitivity location defaults to false, and an unreviewed entry must be false (req-aws-collector-manifest-7, enforced by this entry's allOf). See req-aws-collector-field-projection-7.",
           "type": "boolean"
         },
         "persist_configuration_why": {
@@ -66,7 +66,7 @@
       },
       "allOf": [
         {
-          "description": "Unreviewed means not stored (ruling 2026-09-23, Q43; req-aws-collector-manifest-7). An entry whose sensitivity.status is unreviewed must set persist_configuration to false: nobody has looked at the response shape, so nothing supports storing it.",
+          "description": "Unreviewed means not stored (req-aws-collector-manifest-7). An entry whose sensitivity.status is unreviewed must set persist_configuration to false: nobody has looked at the response shape, so nothing supports storing it.",
           "if": {
             "required": ["sensitivity"],
             "properties": {

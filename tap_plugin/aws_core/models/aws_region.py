@@ -15,6 +15,9 @@ class AwsRegion(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An AWS geographic region."
     ENTITY_ICON: ClassVar[str] = "aws-region"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The region code (us-gov-east-1): unique across
+    # partitions.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("region_code",)
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {
             "shape": "rectangle",

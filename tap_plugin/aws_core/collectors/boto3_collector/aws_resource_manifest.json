@@ -41,7 +41,7 @@
       "source": { "aws_op": "ListFunctions" },
       "why": "Enumerate Lambda functions — serverless compute and a common runtime/compliance surface.",
       "persist_configuration": false,
-      "persist_configuration_why": "Off: ListFunctions returns Environment.Variables verbatim, and Lambda environment variables routinely hold credentials (API keys, database passwords, tokens). Ruling 2026-09-23 (Q38). VPC attachment is kept as typed fields vpc_subnet_ids and vpc_security_group_ids (Q44).",
+      "persist_configuration_why": "Off: ListFunctions returns Environment.Variables verbatim, and Lambda environment variables routinely hold credentials (API keys, database passwords, tokens). VPC attachment is kept as typed fields vpc_subnet_ids and vpc_security_group_ids.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore lambda ListFunctions output shape (FunctionConfiguration), 2026-09-23.",
@@ -299,7 +299,7 @@
       "source": { "custom_fn": "cloudfront_distributions_with_oac" },
       "why": "Enumerate CloudFront distributions — CDN/edge entry points and their origins. Each origin's Origin Access Control (OAC) is resolved and embedded in configuration.",
       "persist_configuration": false,
-      "persist_configuration_why": "Off: ListDistributions returns Origins.Items[].CustomHeaders.Items[].HeaderValue verbatim, and custom origin headers are commonly a shared secret between CloudFront and the origin. Ruling 2026-09-23 (Q40). Each origin's access mode (OAC, OAI or none) is kept as the typed field origin_access (Q44). Whether each origin is sent any custom header is kept as the typed field origin_custom_headers_present, a boolean per origin: presence only, never the header value or name (Q46).",
+      "persist_configuration_why": "Off: ListDistributions returns Origins.Items[].CustomHeaders.Items[].HeaderValue verbatim, and custom origin headers are commonly a shared secret between CloudFront and the origin. Each origin's access mode (OAC, OAI or none) is kept as the typed field origin_access. Whether each origin is sent any custom header is kept as the typed field origin_custom_headers_present, a boolean per origin: presence only, never the header value or name.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore cloudfront ListDistributions (DistributionSummary) and GetOriginAccessControl output shapes and custom_fn cloudfront_distributions_with_oac, 2026-09-23.",
@@ -307,7 +307,7 @@
           {
             "path": "Origins.Items[].CustomHeaders.Items[].HeaderValue",
             "category": "credential",
-            "reason": "Custom origin headers are the usual way to hold a shared secret the origin checks (for example an origin-verify header). Only their presence per origin is recorded, as the typed field origin_custom_headers_present; the value is never stored, and neither is the name (ruling 2026-09-24 Q46).",
+            "reason": "Custom origin headers are the usual way to hold a shared secret the origin checks (for example an origin-verify header). Only their presence per origin is recorded, as the typed field origin_custom_headers_present; the value is never stored, and neither is the name, which can say which secret it is.",
             "evidence": "botocore_sensitive"
           },
           {
@@ -595,7 +595,7 @@
       "source": { "custom_fn": "apigateway_http_apis_detailed" },
       "why": "Enumerate API Gateway v2 HTTP APIs — managed HTTP front doors — with stages, routes, integrations, and authorizers resolved so API -> Lambda and API -> Cognito relationships land as edges.",
       "persist_configuration": false,
-      "persist_configuration_why": "Off: the GetIntegrations fan-out returns _integrations[].RequestParameters verbatim, and static parameter mappings can inject a backend API key into every request. Ruling 2026-09-23 (Q40). Each route's authorization type is kept as the typed field route_authorization_types (Q44).",
+      "persist_configuration_why": "Off: the GetIntegrations fan-out returns _integrations[].RequestParameters verbatim, and static parameter mappings can inject a backend API key into every request. Each route's authorization type is kept as the typed field route_authorization_types.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore apigatewayv2 GetApis, GetStages, GetRoutes, GetIntegrations and GetAuthorizers output shapes and custom_fn apigateway_http_apis_detailed, 2026-09-23.",
@@ -702,7 +702,7 @@
       "source": { "custom_fn": "cognito_user_pools_described" },
       "why": "Enumerate Cognito user pools — managed user directories / OIDC issuers; the identity boundaries JWT authorizers validate against.",
       "persist_configuration": false,
-      "persist_configuration_why": "Off: DescribeUserPool returns SmsConfiguration.ExternalId verbatim, the external id Cognito presents when assuming the SNS caller role. Ruling 2026-09-23 (Q40).",
+      "persist_configuration_why": "Off: DescribeUserPool returns SmsConfiguration.ExternalId verbatim, the external id Cognito presents when assuming the SNS caller role.",
       "sensitivity": {
         "status": "reviewed_may_contain",
         "basis": "Read botocore cognito-idp DescribeUserPool output shape (UserPoolType, EmailConfigurationType, SmsConfigurationType) and custom_fn cognito_user_pools_described, 2026-09-23. Users are never listed.",

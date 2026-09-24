@@ -15,6 +15,9 @@ class AwsAccount(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An AWS account within an organization."
     ENTITY_ICON: ClassVar[str] = "aws-account"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The 12-digit account ID, the boto3 collector's identity
+    # for it.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("account_id",)
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {
             "shape": "round-rectangle",

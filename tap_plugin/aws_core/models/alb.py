@@ -15,6 +15,9 @@ class Alb(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon Application Load Balancer (ALB)."
     ENTITY_ICON: ClassVar[str] = "aws-alb"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The load balancer's ARN: unique across accounts and
+    # regions, stable across renames.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("lb_arn",)
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {
             "shape": "rectangle",

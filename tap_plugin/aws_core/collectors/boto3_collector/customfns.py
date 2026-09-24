@@ -314,7 +314,7 @@ def _origin_access_mode(origin: dict[str, Any]) -> str:
 def _origin_has_custom_headers(origin: dict[str, Any]) -> bool:
     """Whether CloudFront sends any custom header to one origin.
 
-    Presence only (ruling 2026-09-24, Q46): a custom origin header is often a
+    Presence only: a custom origin header is often a
     shared secret the origin checks, so this reads nothing from the header
     except that it exists. No ``HeaderValue`` and no ``HeaderName`` leaves
     this function. A non-empty ``CustomHeaders.Items`` or a positive
@@ -347,7 +347,8 @@ def cloudfront_distributions_with_oac(session: Any, *, client_for: Any = None) -
     And ``_origin_custom_headers_present``: ``{origin Id: bool}`` (see
     :func:`_origin_has_custom_headers`), projected to the typed
     ``origin_custom_headers_present`` field. Presence only: the header values
-    are a credential and the names are not kept either (ruling Q46).
+    are a credential and the names are not kept either (a name such as
+    ``X-Origin-Verify`` says which secret to steal).
 
     The yielded item is the unchanged ``DistributionSummary`` plus those three
     extra keys, so the manifest's ``natural_key`` (``ARN``), ``fields``,

@@ -70,7 +70,7 @@ class TestSchema:
         assert self._errors(entry) == []
 
     def test_unreviewed_entry_that_persists_is_rejected(self):
-        # Ruling 2026-09-23 Q43 (req-aws-collector-manifest-7): unreviewed
+        # req-aws-collector-manifest-7: unreviewed
         # means not stored. The schema carries the rule, so load_manifest()
         # refuses such a manifest before any collection runs.
         entry = self._entry()
@@ -270,7 +270,7 @@ def _credential_paths(entry: dict) -> list[str]:
 )
 def test_credential_entries_are_off_or_acknowledged(entry):
     # Default: an entry with a declared credential location does not persist
-    # its configuration (rulings 2026-09-23 Q38, Q40). Persisting one anyway
+    # its configuration. Persisting one anyway
     # is a known, reviewed risk (req-aws-collector-manifest-6), and then the
     # reason must name every credential location. Either way the reason names
     # them, so the decision is legible where it is made.

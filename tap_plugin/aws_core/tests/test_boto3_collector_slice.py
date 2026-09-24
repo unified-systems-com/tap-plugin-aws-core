@@ -580,7 +580,7 @@ def test_flag_is_what_keeps_the_canary_out(_stub_aws, monkeypatch, entity_type, 
 
 @pytest.mark.django_db
 def test_promoted_security_facts_land_while_configuration_stays_empty(_stub_aws):
-    """Ruling 2026-09-23 Q44: the security facts the off types would lose
+    """The security facts the off types would lose
     with configuration not stored are typed fields, and configuration is still
     ``{}`` for all four off types."""
     from tap_grid.services import get_node
@@ -627,7 +627,7 @@ def test_denied_routes_listing_stores_null_over_an_earlier_map(_stub_aws, monkey
 
 @pytest.mark.django_db
 def test_origin_header_presence_lands_and_the_value_never_does(_stub_aws, monkeypatch):
-    """Ruling 2026-09-24 Q46: each origin's custom-header presence is a typed
+    """Each origin's custom-header presence is a typed
     field; the secret-shaped header value (and the header name) appears in no
     field, not in the GRIFT batch, and not in the stored row or its history.
     An origin without headers records ``False``, an observed absence, not a

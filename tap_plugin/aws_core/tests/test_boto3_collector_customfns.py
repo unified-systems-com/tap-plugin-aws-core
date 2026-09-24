@@ -286,7 +286,7 @@ class TestCloudfrontDistributionsWithOac:
         assert item["_origin_access_controls"] == {}
 
     def test_origin_access_mode_per_origin(self):
-        # Ruling 2026-09-23 Q44: each origin's access mode survives
+        # Each origin's access mode survives
         # configuration being off, read from the summary with no extra call.
         dist = {
             "ARN": "arn:aws:cloudfront::111:distribution/E3",
@@ -322,7 +322,7 @@ class TestCloudfrontDistributionsWithOac:
         }
 
     def test_custom_header_presence_per_origin(self):
-        # Ruling 2026-09-24 Q46: presence only. An origin with a header is
+        # Presence only. An origin with a header is
         # True, one without (absent, empty, or Quantity 0) is False, and the
         # derived map carries neither the header value nor its name.
         dist = {

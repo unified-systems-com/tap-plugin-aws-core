@@ -15,6 +15,9 @@ class AvailabilityZone(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An isolated location within an AWS region."
     ENTITY_ICON: ClassVar[str] = "aws-az"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The zone ID (for example usgw1-az1): the same physical
+    # zone in every account, unlike the zone name, which AWS maps per account.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("zone_id",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

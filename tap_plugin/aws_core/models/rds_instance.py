@@ -15,6 +15,9 @@ class RdsInstance(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon RDS database instance."
     ENTITY_ICON: ClassVar[str] = "aws-rds"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The DB instance's ARN: db_instance_id is chosen by its
+    # owner and unique only within an account and region.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("db_instance_arn",)
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {
             "shape": "rectangle",
@@ -25,6 +28,7 @@ class RdsInstance(BaseModel):
     FIELD_CRUD_SCHEMA: ClassVar[dict[str, Any]] = {
         "name": {"type": "string", "minLength": 1},
         "db_instance_id": {"type": "string"},
+        "db_instance_arn": {"type": "string"},
         "engine": {"type": "string"},
         "engine_version": {"type": "string"},
         "instance_class": {"type": "string"},
@@ -37,6 +41,7 @@ class RdsInstance(BaseModel):
     FIELD_VALIDATION_SCHEMA: ClassVar[dict[str, Any]] = {
         "name": {"validation": "jsonschema", "schema": {"type": "string", "minLength": 1}},
         "db_instance_id": {"validation": "jsonschema", "schema": {"type": "string"}},
+        "db_instance_arn": {"validation": "jsonschema", "schema": {"type": "string"}},
         "engine": {"validation": "jsonschema", "schema": {"type": "string"}},
         "engine_version": {"validation": "jsonschema", "schema": {"type": "string"}},
         "instance_class": {"validation": "jsonschema", "schema": {"type": "string"}},
@@ -49,6 +54,8 @@ class RdsInstance(BaseModel):
 
     name = models.CharField(max_length=255, blank=True, default="")
     db_instance_id = models.CharField(max_length=255, blank=True, default="", db_index=True)
+    # The DB instance's ARN (DBInstanceArn), its identity across accounts and regions. Blank until observed.
+    db_instance_arn = models.CharField(max_length=512, blank=True, default="", db_index=True)
     engine = models.CharField(max_length=64, blank=True, default="")
     engine_version = models.CharField(max_length=64, blank=True, default="")
     instance_class = models.CharField(max_length=64, blank=True, default="")

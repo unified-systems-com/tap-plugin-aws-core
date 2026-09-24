@@ -18,6 +18,9 @@ class CloudtrailTrail(BaseModel):
     )
     ENTITY_ICON: ClassVar[str] = "aws-cloudtrail"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The trail's ARN, the boto3 collector's identity for it
+    # (TrailARN).
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("trail_arn",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {

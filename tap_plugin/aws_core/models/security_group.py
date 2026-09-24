@@ -15,6 +15,11 @@ class SecurityGroup(BaseModel):
     ENTITY_DESCRIPTION: ClassVar[str] = "An Amazon VPC security group (stateful firewall)."
     ENTITY_ICON: ClassVar[str] = "aws-security-group"
     DEFAULT_DIMENSIONS: ClassVar[dict[str, str]] = {"tap.cloud": "aws"}
+    # Identity (req-grid-entity-natural-key): The security group ID (sg-…); the group name is unique
+    # only within a VPC. AWS assigns it, but does not document it as unique across accounts and
+    # regions, so a clash there would surface as AmbiguousIdentity from the generated search, never as
+    # a silent merge. The key moves to the ARN if a collector records one.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("group_id",)
 
     DEFAULT_DISPLAY: ClassVar[dict[str, Any]] = {
         "tap_viz": {
