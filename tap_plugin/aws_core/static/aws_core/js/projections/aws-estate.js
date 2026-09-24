@@ -195,7 +195,7 @@ function _stampVpcColumns(cy) {
         if (_edgeType(e) === E.partitioned) (subnetsOf[e.source().id()] = subnetsOf[e.source().id()] || []).push(e.target());
     });
     Object.values(subnetsOf).forEach((subnets) => {
-        const zones = [...new Set(subnets.map((s) => s.data("availability_zone")).filter(Boolean))].sort();
+        const zones = [...new Set(subnets.map((s) => s.data("availability_zone")).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
         subnets.forEach((s) => {
             const zone = s.data("availability_zone");
             s.data("_stage", zone ? zones.indexOf(zone) : NO_ZONE_STAGE);
