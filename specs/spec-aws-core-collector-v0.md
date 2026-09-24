@@ -422,7 +422,7 @@ already fetches (no new AWS call), so it survives with configuration `{}`:
 | Type | Field | Source | Value |
 | --- | --- | --- | --- |
 | `aws_core__aws_lambda` | `vpc_subnet_ids`, `vpc_security_group_ids` | `ListFunctions` `VpcConfig.SubnetIds[]` / `VpcConfig.SecurityGroupIds[]` | Lists of ids; both `[]` means the function is not in a VPC. |
-| `aws_core__aws_cloudfront_distribution` | `origin_access` | `ListDistributions` origins, derived by `cloudfront_distributions_with_oac` as `_origin_access` | `{origin Id: "oac" \| "oai" \| "none"}`: a non-empty `OriginAccessControlId` is `oac`, a non-empty `S3OriginConfig.OriginAccessIdentity` is `oai`, neither is `none` (CloudFront sends no credential to that origin). |
+| `aws_core__aws_cloudfront_distribution` | `origin_access` | `ListDistributions` origins, derived by `cloudfront_distributions_with_oac` as `_origin_access` | `{origin Id: "oac" \| "oai" \| "none"}`: a non-empty `OriginAccessControlId` is `oac`, a non-empty `S3OriginConfig.OriginAccessIdentity` is `oai`, neither is `none`. `none` means only "no OAC or OAI". It does not mean the origin is public: a custom origin may still check a shared-secret header (`CustomHeaders`, the credential location that keeps this type off), and this field does not record that. |
 | `aws_core__aws_apigateway_http_api` | `route_authorization_types` | `GetRoutes`, derived by `apigateway_http_apis_detailed` as `_route_authorization_types` | `{RouteKey: AuthorizationType}`, AWS's values passed through: `NONE`, `AWS_IAM`, `JWT`, or `CUSTOM` (a Lambda authorizer); a route that omits it is `NONE`, the AWS default. `null` when `GetRoutes` failed, so a denied listing never reads as "no open routes". |
 
 These are fields, not edges. `aws_core` has no Lambda-to-subnet or

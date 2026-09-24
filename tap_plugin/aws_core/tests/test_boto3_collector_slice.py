@@ -114,7 +114,7 @@ _CANNED = {
                                 },
                             },
                             {
-                                # A custom origin with no OAC: CloudFront sends no credential.
+                                # A custom origin with no OAC or OAI.
                                 "Id": "sam-api",
                                 "DomainName": "api.samsite.example",
                                 "CustomOriginConfig": {"OriginProtocolPolicy": "https-only"},
@@ -601,3 +601,23 @@ def test_promoted_security_facts_land_while_configuration_stays_empty(_stub_aws)
     for node in (fn, edge_fn, dist, api):
         assert node.configuration == {}
     assert get_node(node_entity_id("aws_core__aws_cognito_user_pool", _POOL_ID)).configuration == {}
+
+
+@pytest.mark.django_db
+def test_denied_routes_listing_stores_null_over_an_earlier_map(_stub_aws, monkeypatch):
+    """A later denied GetRoutes must replace the stored map with NULL, not
+    leave the last map in place: a stale map could hide a newly open route."""
+    from botocore.exceptions import ClientError
+
+    from tap_grid.services import get_node
+
+    _run_collector()
+    api_id = node_entity_id("aws_core__aws_apigateway_http_api", _API_ARN)
+    assert get_node(api_id).route_authorization_types == {"POST /orders": "JWT", "GET /health": "NONE"}
+
+    def _denied(self, **_kw):
+        raise ClientError({"Error": {"Code": "AccessDeniedException"}}, "GetRoutes")
+
+    monkeypatch.setattr(_CannedClient, "get_routes", _denied, raising=False)
+    _run_collector()
+    assert get_node(api_id).route_authorization_types is None

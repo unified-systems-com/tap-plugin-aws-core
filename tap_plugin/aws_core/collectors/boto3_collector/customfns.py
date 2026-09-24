@@ -298,8 +298,11 @@ def _origin_access_mode(origin: dict[str, Any]) -> str:
     Read from the ``DistributionSummary`` origin itself, with no extra call:
     a non-empty ``OriginAccessControlId`` is an origin access control, a
     non-empty ``S3OriginConfig.OriginAccessIdentity`` is a legacy origin access
-    identity, and neither means CloudFront sends no credential, so the origin
-    must be reachable without one. OAC wins if both are set.
+    identity, and neither is ``none``. ``none`` means only that CloudFront uses
+    no OAC or OAI for that origin. It does not mean the origin is public: a
+    custom origin may still check a shared-secret header
+    (``CustomHeaders``), which this field does not record. OAC wins if both
+    are set.
     """
     if origin.get("OriginAccessControlId"):
         return "oac"

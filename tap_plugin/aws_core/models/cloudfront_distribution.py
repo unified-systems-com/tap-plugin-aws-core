@@ -61,7 +61,9 @@ class CloudfrontDistribution(BaseModel):
     # {origin Id: "oac" | "oai" | "none"}: how CloudFront authenticates to each
     # origin, derived from the ListDistributions origin by the custom_fn
     # (ruling 2026-09-23 Q44: kept as a typed field because configuration is
-    # not stored for this type). "none" means CloudFront sends no credential.
+    # not stored for this type). "none" means no OAC or OAI for that origin; it
+    # does not mean public, since a custom origin may check a shared-secret
+    # header (CustomHeaders), which this field does not record.
     origin_access = models.JSONField(default=dict, blank=True)
     configuration = models.JSONField(default=dict, blank=True)
     tags = models.JSONField(default=dict, blank=True)

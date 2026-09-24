@@ -301,7 +301,13 @@ class TestCloudfrontDistributionsWithOac:
                         "OriginAccessControlId": "",
                         "S3OriginConfig": {"OriginAccessIdentity": ""},
                     },
-                    {"Id": "alb-origin", "CustomOriginConfig": {"OriginProtocolPolicy": "https-only"}},
+                    {
+                        # A shared-secret header is not OAC or OAI: still "none",
+                        # which means "no OAC or OAI", not "public".
+                        "Id": "alb-origin",
+                        "CustomOriginConfig": {"OriginProtocolPolicy": "https-only"},
+                        "CustomHeaders": {"Quantity": 1, "Items": [{"HeaderName": "X-Origin-Verify", "HeaderValue": "s"}]},
+                    },
                 ]
             },
         }
