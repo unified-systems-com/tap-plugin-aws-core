@@ -6,15 +6,15 @@
   "batches": [
     {
       "batch_entity": {
-        "entity_id": "01a0d501-d542-71ce-a924-33e8a72b9846",
+        "entity_id": "01a0d55c-2855-77b1-9352-8023d4c5d72d",
         "entity_type": "batch",
-        "name": "aws_core pages v0.3.0",
+        "name": "aws_core pages v0.3.1",
         "dimensions": {}
       },
       "batch_node": {
         "source": "tap_plugin.aws_core.grift.pages",
-        "name": "aws_core pages v0.3.0",
-        "description": "aws_core's reusable pages (req-aws-core-page-dashboard, -organization, -network): /aws, a dashboard of count tiles, the estate as one picture and two tables; /aws/organization, the OU tree placed by layout tags, with SCP attachments and account placement; /aws/network, transit gateways, attachments, gateways, firewalls and Direct Connect. Every search reads whatever AWS nodes the grid holds: nothing here names a deployment. The children nest under /aws by URL. The graphs share one layout module (aws-estate.js) and the tiles are the aws-counts panel type. v0.2.0 (George, 2026-09-24): the organization graph draws the OU tree only, laid out by aws-organization.js from the nodes' layout:* tags; its scoped, scp and idp searches are gone (on an existing grid, retire those three search nodes: a batch cannot remove a node). v0.3.0 (George, 2026-09-24): the network graph nests each VPC's subnets in it, one column per availability zone, with its internet gateway beside them and a NAT gateway inside its subnet, from PARTITIONED_INTO_SUBNET, ATTACHED_TO_VPC and RESIDES_IN_SUBNET; a subnets table lists each VPC's subnets with zone and CIDR."
+        "name": "aws_core pages v0.3.1",
+        "description": "aws_core's reusable pages (req-aws-core-page-dashboard, -organization, -network): /aws, a dashboard of count tiles, the estate as one picture and two tables; /aws/organization, the OU tree placed by layout tags, with SCP attachments and account placement; /aws/network, transit gateways, attachments, gateways, firewalls and Direct Connect. Every search reads whatever AWS nodes the grid holds: nothing here names a deployment. The children nest under /aws by URL. The graphs share one layout module (aws-estate.js) and the tiles are the aws-counts panel type. v0.2.0 (George, 2026-09-24): the organization graph draws the OU tree only, laid out by aws-organization.js from the nodes' layout:* tags; its scoped, scp and idp searches are gone (on an existing grid, retire those three search nodes: a batch cannot remove a node). v0.3.0 (George, 2026-09-24): the network graph nests each VPC's subnets in it, one column per availability zone, with its internet gateway beside them and a NAT gateway inside its subnet, from PARTITIONED_INTO_SUBNET, ATTACHED_TO_VPC and RESIDES_IN_SUBNET; a subnets table lists each VPC's subnets with zone and CIDR. v0.3.1: the Subnets search drops ORDER BY, which Gryphon refuses on a single-hop traversal (the table sorts client-side)."
       },
       "nodes": [
         {
