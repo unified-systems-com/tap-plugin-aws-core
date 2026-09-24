@@ -11,7 +11,8 @@
  *   layout:columns  integer, on a PARENT; at most this many children per row, wrapping into
  *                   further rows. 1 stacks the children in one column.
  *   layout:row      integer; which row of its parent a node sits in, where the parent groups
- *                   its children into rows by tag (arrangeRows with byRowTag).
+ *                   its children into rows by tag (arrangeRows with byRowTag). Inside a row,
+ *                   siblings sharing a layout:column stack in one column, in layout:order.
  *   layout:fill     "true"; the box widens to its lane: its parent's inner width when the parent
  *                   holds one column, the widest box of its column when the parent holds several,
  *                   or else the rest of the row it sits in.
@@ -116,7 +117,7 @@ export function arrangeRows(cy, parent, children, opts) {
         for (let i = 0; i < ordered.length; i += k) rows.push(ordered.slice(i, i + k));
     }
     if (rows.length <= 1) {
-        ordered.forEach((n, i) => { n.data("_stage", i); n.data("_order", i); });
+        _stampRow(ordered);
         return;
     }
     if (rows.every((r) => r.length === 1)) {
@@ -135,11 +136,20 @@ export function arrangeRows(cy, parent, children, opts) {
         cy.add({group: "nodes", data: {id: rowId, entity_type: ROW.type, label: "", shape: "rectangle", icon_url: "none",
                                        _stage: 0, _order: r, _layout_fill: true, _layout_inset: 0}, classes: ROW.type});
         cy.add({group: "edges", data: {id: `${ROW.edge}:${rowId}`, source: parent.id(), target: rowId, edge_type: ROW.edge}, classes: ROW.type});
-        row.forEach((n, i) => {
-            n.data("_stage", i);
-            n.data("_order", i);
+        _stampRow(row);
+        row.forEach((n) => {
             cy.add({group: "edges", data: {id: `${ROW.edge}:${n.id()}`, source: rowId, target: n.id(), edge_type: ROW.edge}, classes: ROW.type});
         });
+    });
+}
+
+//: One row for `ranked`: each child its own column, unless children carry layout:column, in
+//: which case those sharing a value stack in that column (in the row's sorted order).
+function _stampRow(row) {
+    const tagged = row.some((n) => intTag(n, LAYOUT_TAG.column) !== null);
+    row.forEach((n, i) => {
+        n.data("_stage", tagged ? (intTag(n, LAYOUT_TAG.column) || 0) : i);
+        n.data("_order", i);
     });
 }
 
