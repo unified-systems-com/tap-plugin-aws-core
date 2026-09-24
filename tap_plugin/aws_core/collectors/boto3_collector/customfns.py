@@ -292,6 +292,25 @@ def aws_account_singleton(session: Any, *, client_for: Any = None) -> Iterator[d
     }
 
 
+def _origin_access_mode(origin: dict[str, Any]) -> str:
+    """How CloudFront authenticates to one origin: ``oac``, ``oai`` or ``none``.
+
+    Read from the ``DistributionSummary`` origin itself, with no extra call:
+    a non-empty ``OriginAccessControlId`` is an origin access control, a
+    non-empty ``S3OriginConfig.OriginAccessIdentity`` is a legacy origin access
+    identity, and neither is ``none``. ``none`` means only that CloudFront uses
+    no OAC or OAI for that origin. It does not mean the origin is public: a
+    custom origin may still check a shared-secret header
+    (``CustomHeaders``), which this field does not record. OAC wins if both
+    are set.
+    """
+    if origin.get("OriginAccessControlId"):
+        return "oac"
+    if ((origin.get("S3OriginConfig") or {}).get("OriginAccessIdentity") or "").strip():
+        return "oai"
+    return "none"
+
+
 def cloudfront_distributions_with_oac(session: Any, *, client_for: Any = None) -> Iterator[dict[str, Any]]:
     """Enumerate CloudFront distributions, embedding each origin's OAC config.
 
@@ -307,8 +326,12 @@ def cloudfront_distributions_with_oac(session: Any, *, client_for: Any = None) -
     configuration detail of the distribution, not a separate node — the
     "have it handy" call from the strat-sam-demo discussion (2026-05-21).
 
-    The yielded item is the unchanged ``DistributionSummary`` plus that one
-    extra key, so the manifest's ``natural_key`` (``ARN``), ``fields``,
+    It also derives ``_origin_access``: ``{origin Id: "oac" | "oai" | "none"}``
+    (see :func:`_origin_access_mode`), projected to the typed
+    ``origin_access`` field so the fact survives with configuration off.
+
+    The yielded item is the unchanged ``DistributionSummary`` plus those two
+    extra keys, so the manifest's ``natural_key`` (``ARN``), ``fields``,
     ``tags``, and ``edges`` (``Origins.Items[].DomainName``,
     ``ViewerCertificate.ACMCertificateArn``) all still resolve.
 
@@ -321,7 +344,10 @@ def cloudfront_distributions_with_oac(session: Any, *, client_for: Any = None) -
     for page in _pages(cf, "list_distributions"):
         for dist in (page.get("DistributionList", {}) or {}).get("Items", []) or []:
             oac_ids: list[str] = []
+            origin_access: dict[str, str] = {}
             for origin in (dist.get("Origins") or {}).get("Items", []) or []:
+                if origin.get("Id"):
+                    origin_access[origin["Id"]] = _origin_access_mode(origin)
                 oac_id = origin.get("OriginAccessControlId")
                 if oac_id and oac_id not in oac_ids:
                     oac_ids.append(oac_id)
@@ -336,7 +362,7 @@ def cloudfront_distributions_with_oac(session: Any, *, client_for: Any = None) -
                         # collects; the slot records None so the gap is visible.
                         oac_cache[oac_id] = None
                 oacs[oac_id] = oac_cache[oac_id]
-            yield {**dist, "_origin_access_controls": oacs}
+            yield {**dist, "_origin_access_controls": oacs, "_origin_access": origin_access}
 
 
 def dynamodb_tables_described(session: Any, *, client_for: Any) -> Iterator[dict[str, Any]]:
@@ -491,6 +517,14 @@ def apigateway_http_apis_detailed(session: Any, *, client_for: Any) -> Iterator[
     - ``_authorizer_user_pool_ids`` — Cognito pool ids parsed from JWT
       authorizer issuers (the ``AUTHENTICATES_VIA_USER_POOL`` edge).
 
+    and one typed-field key:
+
+    - ``_route_authorization_types`` — ``{RouteKey: AuthorizationType}`` from
+      ``GetRoutes`` (``NONE``, ``AWS_IAM``, ``JWT``, or ``CUSTOM`` for a Lambda
+      authorizer; a route that omits it is ``NONE``, the AWS default). ``None``
+      when ``GetRoutes`` failed, so a denied listing never reads as "no open
+      routes".
+
     ``GetApis`` carries no ARN; ``_api_arn`` is synthesized in the documented
     ``arn:aws:apigateway:<region>::/apis/<id>`` form as the natural key.
     """
@@ -502,6 +536,7 @@ def apigateway_http_apis_detailed(session: Any, *, client_for: Any) -> Iterator[
             if not api_id:
                 continue
             sub: dict[str, list[dict[str, Any]]] = {}
+            failed: set[str] = set()
             for key, method in (
                 ("_stages", "get_stages"),
                 ("_routes", "get_routes"),
@@ -517,6 +552,7 @@ def apigateway_http_apis_detailed(session: Any, *, client_for: Any) -> Iterator[
                     # still collects, just without that facet (and without
                     # the edges derived from it).
                     items = []
+                    failed.add(key)
                 sub[key] = items
             lambda_arns = [
                 arn
@@ -535,6 +571,13 @@ def apigateway_http_apis_detailed(session: Any, *, client_for: Any) -> Iterator[
                 "_api_arn": f"arn:aws:apigateway:{region}::/apis/{api_id}",
                 "_integration_lambda_arns": list(dict.fromkeys(lambda_arns)),
                 "_authorizer_user_pool_ids": list(dict.fromkeys(pool_ids)),
+                "_route_authorization_types": None
+                if "_routes" in failed
+                else {
+                    route["RouteKey"]: route.get("AuthorizationType") or "NONE"
+                    for route in sub["_routes"]
+                    if route.get("RouteKey")
+                },
             }
 
 

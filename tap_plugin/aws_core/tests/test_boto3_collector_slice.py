@@ -46,6 +46,7 @@ _API_ID = "sliceapi01"
 _API_ARN = f"arn:aws:apigateway:::/apis/{_API_ID}"  # canned clients carry no region
 _POOL_ID = "us-east-1_Slice0001"
 _BUCKET_ARN = f"arn:aws:s3:::{_BUCKET}"
+_FN_NO_VPC_ARN = f"arn:aws:lambda:us-east-1:{_ACCOUNT}:function:sam-edge"
 
 _CANNED = {
     "list_functions": {
@@ -63,7 +64,20 @@ _CANNED = {
                 # Secret-shaped environment: the Lambda manifest entry has
                 # persist_configuration: false, so none of this may be stored.
                 "Environment": {"Variables": {"DB_PASSWORD": _ENV_CANARY, "STAGE": "prod"}},
-            }
+                "VpcConfig": {
+                    "SubnetIds": ["subnet-0aaa1111", "subnet-0bbb2222"],
+                    "SecurityGroupIds": ["sg-0ccc3333"],
+                    "VpcId": "vpc-0ddd4444",
+                },
+            },
+            {
+                # Not in a VPC: ListFunctions returns empty VpcConfig lists.
+                "FunctionName": "sam-edge",
+                "FunctionArn": _FN_NO_VPC_ARN,
+                "Runtime": "python3.13",
+                "Handler": "edge.handler",
+                "VpcConfig": {"SubnetIds": [], "SecurityGroupIds": [], "VpcId": ""},
+            },
         ]
     },
     "list_roles": {
@@ -91,12 +105,20 @@ _CANNED = {
                     "Origins": {
                         "Items": [
                             {
+                                "Id": "sam-site-s3",
                                 "DomainName": "sam-site.s3.amazonaws.com",
+                                "OriginAccessControlId": "E2SLICEOAC0001",
                                 "CustomHeaders": {
                                     "Quantity": 1,
                                     "Items": [{"HeaderName": "X-Origin-Verify", "HeaderValue": _CF_CANARY}],
                                 },
-                            }
+                            },
+                            {
+                                # A custom origin with no OAC or OAI.
+                                "Id": "sam-api",
+                                "DomainName": "api.samsite.example",
+                                "CustomOriginConfig": {"OriginProtocolPolicy": "https-only"},
+                            },
                         ]
                     },
                     "ViewerCertificate": {},
@@ -170,8 +192,14 @@ _CANNED = {
         }
     },
     # API Gateway v2 HTTP API with a static header mapping carrying a key.
-    # get_stages / get_routes / get_authorizers fall through to {} (no items).
+    # get_stages / get_authorizers fall through to {} (no items).
     "get_apis": {"Items": [{"ApiId": _API_ID, "Name": "sam-api", "ProtocolType": "HTTP"}]},
+    "get_routes": {
+        "Items": [
+            {"RouteId": "r1", "RouteKey": "POST /orders", "AuthorizationType": "JWT", "AuthorizerId": "a1"},
+            {"RouteId": "r2", "RouteKey": "GET /health", "AuthorizationType": "NONE"},
+        ]
+    },
     "get_integrations": {
         "Items": [
             {
@@ -546,3 +574,50 @@ def test_flag_is_what_keeps_the_canary_out(_stub_aws, monkeypatch, entity_type, 
     node = get_node(node_entity_id(entity_type, natural_key))
     assert node.configuration == {}
     assert getattr(node, field) == value
+
+
+@pytest.mark.django_db
+def test_promoted_security_facts_land_while_configuration_stays_empty(_stub_aws):
+    """Ruling 2026-09-23 Q44: the security facts the off types would lose
+    with configuration not stored are typed fields, and configuration is still
+    ``{}`` for all four off types."""
+    from tap_grid.services import get_node
+
+    _run_collector()
+
+    fn = get_node(node_entity_id("aws_core__aws_lambda", _FN_ARN))
+    assert fn.vpc_subnet_ids == ["subnet-0aaa1111", "subnet-0bbb2222"]
+    assert fn.vpc_security_group_ids == ["sg-0ccc3333"]
+    edge_fn = get_node(node_entity_id("aws_core__aws_lambda", _FN_NO_VPC_ARN))
+    assert edge_fn.vpc_subnet_ids == []  # not in a VPC
+    assert edge_fn.vpc_security_group_ids == []
+
+    dist = get_node(node_entity_id("aws_core__aws_cloudfront_distribution", _DIST_ARN))
+    assert dist.origin_access == {"sam-site-s3": "oac", "sam-api": "none"}
+
+    api = get_node(node_entity_id("aws_core__aws_apigateway_http_api", _API_ARN))
+    assert api.route_authorization_types == {"POST /orders": "JWT", "GET /health": "NONE"}
+
+    for node in (fn, edge_fn, dist, api):
+        assert node.configuration == {}
+    assert get_node(node_entity_id("aws_core__aws_cognito_user_pool", _POOL_ID)).configuration == {}
+
+
+@pytest.mark.django_db
+def test_denied_routes_listing_stores_null_over_an_earlier_map(_stub_aws, monkeypatch):
+    """A later denied GetRoutes must replace the stored map with NULL, not
+    leave the last map in place: a stale map could hide a newly open route."""
+    from botocore.exceptions import ClientError
+
+    from tap_grid.services import get_node
+
+    _run_collector()
+    api_id = node_entity_id("aws_core__aws_apigateway_http_api", _API_ARN)
+    assert get_node(api_id).route_authorization_types == {"POST /orders": "JWT", "GET /health": "NONE"}
+
+    def _denied(self, **_kw):
+        raise ClientError({"Error": {"Code": "AccessDeniedException"}}, "GetRoutes")
+
+    monkeypatch.setattr(_CannedClient, "get_routes", _denied, raising=False)
+    _run_collector()
+    assert get_node(api_id).route_authorization_types is None
