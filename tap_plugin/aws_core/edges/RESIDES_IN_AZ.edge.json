@@ -1,0 +1,14 @@
+{
+  "slug": "RESIDES_IN_AZ__aws_core",
+  "name": "Resides In AZ",
+  "description": "A subnet is placed in one availability zone (subnet -> AZ): ec2:DescribeSubnets reports it as AvailabilityZone / AvailabilityZoneId, and AWS fixes it at creation, since a subnet cannot span zones. Exactly one per subnet; the edge schema has no cardinality field, so that rule is stated here and is not enforced on write (unified-systems-com/tap#794). A reference, not containment: the zone is AWS's reference topology (the region's DIVIDED_INTO_AZ child) and never retires with or because of a subnet, and the subnet's one containing parent is its VPC (PARTITIONED_INTO_SUBNET). Resources placed in a subnet reach their zone through the subnet and do not carry this edge, as they do not carry RESIDES_IN_VPC.",
+  "sources": [
+    "aws_core__aws_subnet"
+  ],
+  "targets": [
+    "aws_core__aws_az"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}
