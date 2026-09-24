@@ -1,0 +1,14 @@
+{
+  "slug": "ATTACHED_TO_TRANSIT_GATEWAY__aws_core",
+  "name": "Attached To Transit Gateway",
+  "description": "A transit gateway attachment belongs to its transit gateway: the gateway named by the attachment's TransitGatewayId (attachment -> transit gateway). For a peering attachment this is the local side; the far side is PEERS_WITH_TRANSIT_GATEWAY. The `_TO` is the locative preposition of 'attached to', not a direction marker.",
+  "sources": [
+    "aws_core__aws_transit_gateway_attachment"
+  ],
+  "targets": [
+    "aws_core__aws_transit_gateway"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}

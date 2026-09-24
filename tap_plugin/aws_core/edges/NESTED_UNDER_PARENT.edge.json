@@ -1,0 +1,16 @@
+{
+  "slug": "NESTED_UNDER_PARENT__aws_core",
+  "name": "Nested Under Parent",
+  "description": "An organizational unit or a member account sits directly under its parent in an AWS Organizations tree (child -> parent). The parent is another OU or the organization, which stands for the organization's single root. This is AWS's one parent/child relationship (organizations:ListParents takes an account or an OU and returns an OU or the root), so OU nesting and account placement are one edge type. An account or OU has exactly one parent at a time. Every service control policy attached to a parent also bounds its children, which is why the tree is drawn.",
+  "sources": [
+    "aws_core__aws_organizational_unit",
+    "aws_core__aws_account"
+  ],
+  "targets": [
+    "aws_core__aws_organizational_unit",
+    "aws_core__aws_organization"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}

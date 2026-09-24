@@ -5,7 +5,11 @@ from tap_plugin.aws_core.models.alb import Alb
 from tap_plugin.aws_core.models.apigateway_http_api import ApiGatewayHttpApi
 from tap_plugin.aws_core.models.availability_zone import AvailabilityZone
 from tap_plugin.aws_core.models.aws_account import AwsAccount
+from tap_plugin.aws_core.models.aws_identity_center_instance import AwsIdentityCenterInstance
+from tap_plugin.aws_core.models.aws_organization import AwsOrganization
+from tap_plugin.aws_core.models.aws_organizational_unit import AwsOrganizationalUnit
 from tap_plugin.aws_core.models.aws_region import AwsRegion
+from tap_plugin.aws_core.models.aws_service_control_policy import AwsServiceControlPolicy
 from tap_plugin.aws_core.models.bedrock_model import BedrockModel
 from tap_plugin.aws_core.models.cloudfront_distribution import CloudfrontDistribution
 from tap_plugin.aws_core.models.cloudtrail_trail import CloudtrailTrail
@@ -45,6 +49,8 @@ from tap_plugin.aws_core.models.sqs_queue import SqsQueue
 from tap_plugin.aws_core.models.ssm_parameter import SsmParameter
 from tap_plugin.aws_core.models.subnet import Subnet
 from tap_plugin.aws_core.models.target_group import TargetGroup
+from tap_plugin.aws_core.models.transit_gateway import TransitGateway
+from tap_plugin.aws_core.models.transit_gateway_attachment import TransitGatewayAttachment
 from tap_plugin.aws_core.models.vpc import Vpc
 
 __all__ = [
@@ -53,7 +59,11 @@ __all__ = [
     "ApiGatewayHttpApi",
     "AvailabilityZone",
     "AwsAccount",
+    "AwsIdentityCenterInstance",
+    "AwsOrganization",
+    "AwsOrganizationalUnit",
     "AwsRegion",
+    "AwsServiceControlPolicy",
     "BedrockModel",
     "CloudfrontDistribution",
     "CloudtrailTrail",
@@ -93,5 +103,7 @@ __all__ = [
     "SsmParameter",
     "Subnet",
     "TargetGroup",
+    "TransitGateway",
+    "TransitGatewayAttachment",
     "Vpc",
 ]

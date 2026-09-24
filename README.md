@@ -3,8 +3,8 @@
 `aws_core` owns the TAP vocabulary for AWS resources and relationships, and the
 collector that populates it from a running AWS account:
 
-- **46 TAP-managed AWS resource models** (`tap_plugin/aws_core/models/`)
-- **10 AWS edge types** (`tap_plugin/aws_core/edges/`)
+- **52 TAP-managed AWS resource models** (`tap_plugin/aws_core/models/`)
+- **17 AWS edge types** (`tap_plugin/aws_core/edges/`)
 - **Reference GRIFT data** for regions and availability zones (`tap_plugin/aws_core/grift/`)
 - **The boto3 collector** — a manifest-driven engine that collects a single AWS
   account into the grid (`tap_plugin/aws_core/collectors/boto3_collector/`)
@@ -125,7 +125,7 @@ Regions and availability zones ship as GRIFT seed data
 (`grift/regions.grift.json`), kept current by the `refresh-aws-catalog` skill
 rather than by the collector.
 
-### Modeled, but NOT collected (27 models)
+### Modeled, but NOT collected (33 models)
 
 These have first-class TAP models and icons but **no manifest entry** — the
 collector does not populate them today:
@@ -134,9 +134,12 @@ collector does not populate them today:
 - **Containers**: ECS clusters / services / tasks, EKS clusters, ECR repositories
 - **Networking**: VPCs, subnets, security groups, network ACLs, internet
   gateways, NAT gateways, Elastic IPs, route tables, ALBs, classic ELBs,
-  target groups, Network Firewalls
+  target groups, Network Firewalls, transit gateways and their attachments
+- **Organization**: the organization (which also stands for its root),
+  organizational units, service control policies
 - **Data**: RDS instances, Elasticsearch/OpenSearch domains, ElastiCache clusters
-- **Identity & secrets**: IAM users, IAM policies, SSM parameters
+- **Identity & secrets**: IAM users, IAM policies, SSM parameters, IAM Identity
+  Center instances
 - **AI/ML**: Bedrock models, SageMaker endpoints
 
 ### Everything else
