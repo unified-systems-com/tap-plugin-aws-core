@@ -13,9 +13,9 @@
  *   layout:row      integer; which row of its parent a node sits in, where the parent groups
  *                   its children into rows by tag (arrangeRows with byRowTag). Inside a row,
  *                   siblings sharing a layout:column stack in one column, in layout:order.
- *   layout:fill     "true"; the box widens to its lane: its parent's inner width when the parent
- *                   holds one column, the widest box of its column when the parent holds several,
- *                   or else the rest of the row it sits in.
+ *   layout:fill     "true"; the box widens to its lane. Sharing a column with other siblings:
+ *                   the parent's inner width when all siblings share that one column, else the
+ *                   column's widest box. Alone in its column (a row cell): the rest of its row.
  *
  * The helpers stamp `_stage` / `_order` for tap_viz's `ranked` inner layout (nested-projection.js).
  * A parent laid out in several rows gets one invisible row box per row (type `_layout_row`,
