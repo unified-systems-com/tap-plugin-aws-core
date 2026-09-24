@@ -1,0 +1,14 @@
+{
+  "slug": "CARRIED_ON_CONNECTION__aws_core",
+  "name": "Carried On Connection",
+  "description": "A Direct Connect virtual interface rides on a Direct Connect connection (VIF -> connection): the VIF's connectionId. The VIF is a VLAN with its own BGP session on that link.",
+  "sources": [
+    "aws_core__aws_dx_virtual_interface"
+  ],
+  "targets": [
+    "aws_core__aws_dx_connection"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}

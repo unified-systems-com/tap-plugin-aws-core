@@ -1,6 +1,7 @@
 """AWS Core plugin models package."""
 
 from tap_plugin.aws_core.models.acm_certificate import AcmCertificate
+from tap_plugin.aws_core.models.acm_private_ca import AcmPrivateCa
 from tap_plugin.aws_core.models.alb import Alb
 from tap_plugin.aws_core.models.apigateway_http_api import ApiGatewayHttpApi
 from tap_plugin.aws_core.models.availability_zone import AvailabilityZone
@@ -15,6 +16,9 @@ from tap_plugin.aws_core.models.cloudfront_distribution import CloudfrontDistrib
 from tap_plugin.aws_core.models.cloudtrail_trail import CloudtrailTrail
 from tap_plugin.aws_core.models.cloudwatch_log_group import CloudwatchLogGroup
 from tap_plugin.aws_core.models.cognito_user_pool import CognitoUserPool
+from tap_plugin.aws_core.models.dx_connection import DxConnection
+from tap_plugin.aws_core.models.dx_gateway import DxGateway
+from tap_plugin.aws_core.models.dx_virtual_interface import DxVirtualInterface
 from tap_plugin.aws_core.models.dynamodb_table import DynamoDbTable
 from tap_plugin.aws_core.models.ebs_volume import EbsVolume
 from tap_plugin.aws_core.models.ec2_instance import Ec2Instance
@@ -40,6 +44,7 @@ from tap_plugin.aws_core.models.network_acl import NetworkAcl
 from tap_plugin.aws_core.models.network_firewall import NetworkFirewall
 from tap_plugin.aws_core.models.rds_instance import RdsInstance
 from tap_plugin.aws_core.models.route53_hosted_zone import Route53HostedZone
+from tap_plugin.aws_core.models.route53_resolver_firewall_rule_group import Route53ResolverFirewallRuleGroup
 from tap_plugin.aws_core.models.route_table import RouteTable
 from tap_plugin.aws_core.models.s3_bucket import S3Bucket
 from tap_plugin.aws_core.models.sagemaker_endpoint import SagemakerEndpoint
@@ -52,9 +57,12 @@ from tap_plugin.aws_core.models.target_group import TargetGroup
 from tap_plugin.aws_core.models.transit_gateway import TransitGateway
 from tap_plugin.aws_core.models.transit_gateway_attachment import TransitGatewayAttachment
 from tap_plugin.aws_core.models.vpc import Vpc
+from tap_plugin.aws_core.models.vpc_endpoint import VpcEndpoint
+from tap_plugin.aws_core.models.vpc_endpoint_service import VpcEndpointService
 
 __all__ = [
     "AcmCertificate",
+    "AcmPrivateCa",
     "Alb",
     "ApiGatewayHttpApi",
     "AvailabilityZone",
@@ -69,6 +77,9 @@ __all__ = [
     "CloudtrailTrail",
     "CloudwatchLogGroup",
     "CognitoUserPool",
+    "DxConnection",
+    "DxGateway",
+    "DxVirtualInterface",
     "DynamoDbTable",
     "EbsVolume",
     "Ec2Instance",
@@ -94,6 +105,7 @@ __all__ = [
     "NetworkFirewall",
     "RdsInstance",
     "Route53HostedZone",
+    "Route53ResolverFirewallRuleGroup",
     "RouteTable",
     "S3Bucket",
     "SagemakerEndpoint",
@@ -106,4 +118,6 @@ __all__ = [
     "TransitGateway",
     "TransitGatewayAttachment",
     "Vpc",
+    "VpcEndpoint",
+    "VpcEndpointService",
 ]

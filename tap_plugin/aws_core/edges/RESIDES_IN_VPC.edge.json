@@ -1,0 +1,18 @@
+{
+  "slug": "RESIDES_IN_VPC__aws_core",
+  "name": "Resides In VPC",
+  "description": "A VPC-scoped resource that is not placed in a subnet lives in a VPC (resource -> VPC): the item's VpcId. Security groups, network ACLs, route tables and target groups are VPC-wide; a gateway-type VPC endpoint has no subnet. A resource placed in subnets uses RESIDES_IN_SUBNET instead and reaches its VPC through the subnet, so the VPC is never recorded twice. A reference, not containment (containment edges must point parent -> child).",
+  "sources": [
+    "aws_core__aws_security_group",
+    "aws_core__aws_network_acl",
+    "aws_core__aws_route_table",
+    "aws_core__aws_target_group",
+    "aws_core__aws_vpc_endpoint"
+  ],
+  "targets": [
+    "aws_core__aws_vpc"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}

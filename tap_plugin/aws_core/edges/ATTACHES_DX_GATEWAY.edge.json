@@ -1,0 +1,14 @@
+{
+  "slug": "ATTACHES_DX_GATEWAY__aws_core",
+  "name": "Attaches DX Gateway",
+  "description": "A transit gateway attachment of resource type direct-connect-gateway connects a Direct Connect gateway to its transit gateway (attachment -> DX gateway): the attachment's ResourceId. This is how AWS itself represents a DX gateway association on the transit gateway side, so the association reuses the attachment node rather than adding a second DX-gateway-to-TGW edge that would record the same fact.",
+  "sources": [
+    "aws_core__aws_transit_gateway_attachment"
+  ],
+  "targets": [
+    "aws_core__aws_dx_gateway"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}

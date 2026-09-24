@@ -1,0 +1,15 @@
+{
+  "slug": "ISSUED_BY_CA__aws_core",
+  "name": "Issued By CA",
+  "description": "A certificate was issued by an AWS Private CA (certificate holder -> issuing CA): a subordinate CA's certificate signed by its parent CA, or an ACM private certificate's CertificateAuthorityArn. No `_FROM`: nothing flows at the moment the edge records, it names the issuer.",
+  "sources": [
+    "aws_core__aws_acm_private_ca",
+    "aws_core__aws_acm_certificate"
+  ],
+  "targets": [
+    "aws_core__aws_acm_private_ca"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}
