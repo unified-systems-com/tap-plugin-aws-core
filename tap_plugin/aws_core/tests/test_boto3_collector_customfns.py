@@ -14,6 +14,8 @@ Origin Access Control config in the distribution's configuration).
 
 from __future__ import annotations
 
+import json
+
 from botocore.exceptions import ClientError
 from tap_plugin.aws_core.collectors.boto3_collector.customfns import (
     _bucket_size_metrics,
@@ -318,6 +320,38 @@ class TestCloudfrontDistributionsWithOac:
             "open-s3-origin": "none",
             "alb-origin": "none",
         }
+
+    def test_custom_header_presence_per_origin(self):
+        # Ruling 2026-09-24 Q46: presence only. An origin with a header is
+        # True, one without (absent, empty, or Quantity 0) is False, and the
+        # derived map carries neither the header value nor its name.
+        dist = {
+            "ARN": "arn:aws:cloudfront::111:distribution/E4",
+            "Origins": {
+                "Items": [
+                    {
+                        "Id": "verified-alb",
+                        "CustomHeaders": {
+                            "Quantity": 1,
+                            "Items": [{"HeaderName": "X-Origin-Verify", "HeaderValue": "canary-unit-3e8b"}],
+                        },
+                    },
+                    {"Id": "quantity-zero", "CustomHeaders": {"Quantity": 0}},
+                    {"Id": "empty-items", "CustomHeaders": {"Quantity": 0, "Items": []}},
+                    {"Id": "no-block"},
+                ]
+            },
+        }
+        item = next(iter(cloudfront_distributions_with_oac(_FakeOacSession([dist]))))
+        presence = item["_origin_custom_headers_present"]
+        assert presence == {
+            "verified-alb": True,
+            "quantity-zero": False,
+            "empty-items": False,
+            "no-block": False,
+        }
+        assert "canary-unit-3e8b" not in json.dumps(presence)
+        assert "X-Origin-Verify" not in json.dumps(presence)
 
     def test_shared_oac_resolved_once(self):
         # Two distributions referencing the same OAC -> one GetOriginAccessControl

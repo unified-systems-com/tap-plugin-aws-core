@@ -114,10 +114,12 @@ _CANNED = {
                                 },
                             },
                             {
-                                # A custom origin with no OAC or OAI.
+                                # A custom origin with no OAC or OAI, and no custom
+                                # header (ListDistributions reports Quantity 0).
                                 "Id": "sam-api",
                                 "DomainName": "api.samsite.example",
                                 "CustomOriginConfig": {"OriginProtocolPolicy": "https-only"},
+                                "CustomHeaders": {"Quantity": 0},
                             },
                         ]
                     },
@@ -621,3 +623,34 @@ def test_denied_routes_listing_stores_null_over_an_earlier_map(_stub_aws, monkey
     monkeypatch.setattr(_CannedClient, "get_routes", _denied, raising=False)
     _run_collector()
     assert get_node(api_id).route_authorization_types is None
+
+
+@pytest.mark.django_db
+def test_origin_header_presence_lands_and_the_value_never_does(_stub_aws, monkeypatch):
+    """Ruling 2026-09-24 Q46: each origin's custom-header presence is a typed
+    field; the secret-shaped header value (and the header name) appears in no
+    field, not in the GRIFT batch, and not in the stored row or its history.
+    An origin without headers records ``False``, an observed absence, not a
+    missing key or ``null``."""
+    from tap_grid.services import get_node
+
+    submitted: list[str] = []
+    real_submit = Boto3Collector.submit_grift
+
+    def _capture(self, document, **kwargs):
+        submitted.append(json.dumps(document, default=str))
+        return real_submit(self, document, **kwargs)
+
+    monkeypatch.setattr(Boto3Collector, "submit_grift", _capture)
+    _run_collector()
+
+    dist = get_node(node_entity_id("aws_core__aws_cloudfront_distribution", _DIST_ARN))
+    assert dist.origin_custom_headers_present == {"sam-site-s3": True, "sam-api": False}
+    assert dist.origin_custom_headers_present["sam-api"] is False  # absence, not unobserved
+
+    assert len(submitted) == 1
+    for secret in (_CF_CANARY, "X-Origin-Verify"):
+        assert secret not in json.dumps(dist.origin_custom_headers_present)
+        assert secret not in submitted[0]
+        assert secret not in _row_dump(dist)
+    assert dist.history.exists()

@@ -301,14 +301,28 @@ def _origin_access_mode(origin: dict[str, Any]) -> str:
     identity, and neither is ``none``. ``none`` means only that CloudFront uses
     no OAC or OAI for that origin. It does not mean the origin is public: a
     custom origin may still check a shared-secret header
-    (``CustomHeaders``), which this field does not record. OAC wins if both
-    are set.
+    (``CustomHeaders``), whose presence :func:`_origin_has_custom_headers`
+    records separately. OAC wins if both are set.
     """
     if origin.get("OriginAccessControlId"):
         return "oac"
     if ((origin.get("S3OriginConfig") or {}).get("OriginAccessIdentity") or "").strip():
         return "oai"
     return "none"
+
+
+def _origin_has_custom_headers(origin: dict[str, Any]) -> bool:
+    """Whether CloudFront sends any custom header to one origin.
+
+    Presence only (ruling 2026-09-24, Q46): a custom origin header is often a
+    shared secret the origin checks, so this reads nothing from the header
+    except that it exists. No ``HeaderValue`` and no ``HeaderName`` leaves
+    this function. A non-empty ``CustomHeaders.Items`` or a positive
+    ``CustomHeaders.Quantity`` is ``True``; an origin whose ``CustomHeaders``
+    is absent, empty or has ``Quantity`` 0 is ``False``, an observed absence.
+    """
+    headers = origin.get("CustomHeaders") or {}
+    return bool(headers.get("Items")) or (headers.get("Quantity") or 0) > 0
 
 
 def cloudfront_distributions_with_oac(session: Any, *, client_for: Any = None) -> Iterator[dict[str, Any]]:
@@ -330,7 +344,12 @@ def cloudfront_distributions_with_oac(session: Any, *, client_for: Any = None) -
     (see :func:`_origin_access_mode`), projected to the typed
     ``origin_access`` field so the fact survives with configuration off.
 
-    The yielded item is the unchanged ``DistributionSummary`` plus those two
+    And ``_origin_custom_headers_present``: ``{origin Id: bool}`` (see
+    :func:`_origin_has_custom_headers`), projected to the typed
+    ``origin_custom_headers_present`` field. Presence only: the header values
+    are a credential and the names are not kept either (ruling Q46).
+
+    The yielded item is the unchanged ``DistributionSummary`` plus those three
     extra keys, so the manifest's ``natural_key`` (``ARN``), ``fields``,
     ``tags``, and ``edges`` (``Origins.Items[].DomainName``,
     ``ViewerCertificate.ACMCertificateArn``) all still resolve.
@@ -345,9 +364,11 @@ def cloudfront_distributions_with_oac(session: Any, *, client_for: Any = None) -
         for dist in (page.get("DistributionList", {}) or {}).get("Items", []) or []:
             oac_ids: list[str] = []
             origin_access: dict[str, str] = {}
+            headers_present: dict[str, bool] = {}
             for origin in (dist.get("Origins") or {}).get("Items", []) or []:
                 if origin.get("Id"):
                     origin_access[origin["Id"]] = _origin_access_mode(origin)
+                    headers_present[origin["Id"]] = _origin_has_custom_headers(origin)
                 oac_id = origin.get("OriginAccessControlId")
                 if oac_id and oac_id not in oac_ids:
                     oac_ids.append(oac_id)
@@ -362,7 +383,12 @@ def cloudfront_distributions_with_oac(session: Any, *, client_for: Any = None) -
                         # collects; the slot records None so the gap is visible.
                         oac_cache[oac_id] = None
                 oacs[oac_id] = oac_cache[oac_id]
-            yield {**dist, "_origin_access_controls": oacs, "_origin_access": origin_access}
+            yield {
+                **dist,
+                "_origin_access_controls": oacs,
+                "_origin_access": origin_access,
+                "_origin_custom_headers_present": headers_present,
+            }
 
 
 def dynamodb_tables_described(session: Any, *, client_for: Any) -> Iterator[dict[str, Any]]:
