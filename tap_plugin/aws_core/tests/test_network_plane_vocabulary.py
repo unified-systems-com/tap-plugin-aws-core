@@ -102,7 +102,8 @@ class TestDeclarations:
 
     def test_vpc_contains_its_subnets_and_nothing_else(self) -> None:
         assert Vpc.CONTAINMENT_EDGES == ("PARTITIONED_INTO_SUBNET__aws_core",)
-        assert Subnet.CONTAINMENT_EDGES == ()
+        # getattr: the CI floor core predates BaseModel.CONTAINMENT_EDGES, so Subnet inherits nothing there.
+        assert getattr(Subnet, "CONTAINMENT_EDGES", ()) == ()
 
     def test_account_edge_covers_every_new_type(self) -> None:
         sources = get_edge_type_constraints("BELONGS_TO_ACCOUNT__aws_core").sources
