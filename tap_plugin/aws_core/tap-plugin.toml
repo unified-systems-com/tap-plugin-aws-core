@@ -52,6 +52,12 @@ aws_core__aws_cognito_user_pool = "tap_plugin.aws_core.models.cognito_user_pool.
 aws_core__aws_kms_key = "tap_plugin.aws_core.models.kms_key.KmsKey"
 aws_core__aws_sqs_queue = "tap_plugin.aws_core.models.sqs_queue.SqsQueue"
 aws_core__aws_cloudtrail_trail = "tap_plugin.aws_core.models.cloudtrail_trail.CloudtrailTrail"
+aws_core__aws_organization = "tap_plugin.aws_core.models.aws_organization.AwsOrganization"
+aws_core__aws_organizational_unit = "tap_plugin.aws_core.models.aws_organizational_unit.AwsOrganizationalUnit"
+aws_core__aws_service_control_policy = "tap_plugin.aws_core.models.aws_service_control_policy.AwsServiceControlPolicy"
+aws_core__aws_identity_center_instance = "tap_plugin.aws_core.models.aws_identity_center_instance.AwsIdentityCenterInstance"
+aws_core__aws_transit_gateway = "tap_plugin.aws_core.models.transit_gateway.TransitGateway"
+aws_core__aws_transit_gateway_attachment = "tap_plugin.aws_core.models.transit_gateway_attachment.TransitGatewayAttachment"
 
 [edges]
 DIVIDED_INTO_AZ__aws_core = "edges/DIVIDED_INTO_AZ.edge.json"
@@ -65,6 +71,12 @@ RUNS_SERVICE__aws_core = "edges/RUNS_SERVICE.edge.json"
 FEDERATES_INTO_ROLE__aws_core = "edges/FEDERATES_INTO_ROLE.edge.json"
 ENCRYPTED_WITH_KEY__aws_core = "edges/ENCRYPTED_WITH_KEY.edge.json"
 AUTHENTICATES_VIA_USER_POOL__aws_core = "edges/AUTHENTICATES_VIA_USER_POOL.edge.json"
+NESTED_UNDER_PARENT__aws_core = "edges/NESTED_UNDER_PARENT.edge.json"
+ATTACHED_TO_TARGET__aws_core = "edges/ATTACHED_TO_TARGET.edge.json"
+TRUSTS_IDENTITY_SOURCE__aws_core = "edges/TRUSTS_IDENTITY_SOURCE.edge.json"
+ATTACHED_TO_TRANSIT_GATEWAY__aws_core = "edges/ATTACHED_TO_TRANSIT_GATEWAY.edge.json"
+ATTACHES_VPC__aws_core = "edges/ATTACHES_VPC.edge.json"
+PEERS_WITH_TRANSIT_GATEWAY__aws_core = "edges/PEERS_WITH_TRANSIT_GATEWAY.edge.json"
 
 [grift]
 dimension = "grift/dimension.grift.json"

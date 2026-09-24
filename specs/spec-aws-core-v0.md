@@ -30,6 +30,9 @@ v0 is intentionally scoped to the "meat and potatoes" AWS resources common to mo
 | req-aws-core-icons | [Icon Assets](#icon-assets) | Implemented | SVG icons per the TAP grid icon spec |
 | req-aws-core-computing-core | [Computing Core Alignment](#computing-core-alignment) | Proposed | Future AWS-to-generic mapping belongs here rather than in `computing_core` |
 | req-aws-core-validation | [Plugin Validation](#plugin-validation) | Implemented | Passes TAP plugin validation at all three levels |
+| req-aws-core-organizations | [Organizations Tree](#organizations-tree) | Implemented | Organization (as its own root), OU and SCP design vocabulary; the tree and SCP attachment edges |
+| req-aws-core-identity-center | [IAM Identity Center](#iam-identity-center) | Implemented | Identity Center instance design vocabulary and its open edge to an external identity provider |
+| req-aws-core-transit-gateway | [Transit Gateway](#transit-gateway) | Implemented | Transit gateway and attachment design vocabulary; attachment, VPC and peering edges |
 | req-aws-core-nongoals | [v0 Non-Goals](#v0-non-goals) | Proposed | Explicitly deferred concerns |
 
 ### Plugin Scope
@@ -48,8 +51,9 @@ The plugin covers:
 - container infrastructure (ECR)
 - storage (S3, EBS)
 - databases (RDS, DynamoDB, ElastiCache, Elasticsearch/OpenSearch)
-- networking (VPC, Subnet, Security Group, Network ACL, Internet Gateway, NAT Gateway, Elastic IP, Route Table, ALB, ELB, Target Group, Route 53, Network Firewall)
-- identity and access (IAM User, IAM Role, IAM Policy, IAM OIDC Provider)
+- networking (VPC, Subnet, Security Group, Network ACL, Internet Gateway, NAT Gateway, Elastic IP, Route Table, ALB, ELB, Target Group, Route 53, Network Firewall, Transit Gateway, Transit Gateway Attachment)
+- identity and access (IAM User, IAM Role, IAM Policy, IAM OIDC Provider, IAM Identity Center instance)
+- organization structure (Organization, Organizational Unit, Service Control Policy)
 - security and configuration (ACM Certificate, Secrets Manager, SSM Parameter Store)
 - AI services (Bedrock, SageMaker)
 - infrastructure reference (Region, Availability Zone, Account)
@@ -85,12 +89,13 @@ drifts on every model added; the manifest + validator own "which models exist").
 | Category | Models |
 | --- | --- |
 | Infrastructure | AwsRegion, AvailabilityZone, AwsAccount |
+| Organization | AwsOrganization, AwsOrganizationalUnit, AwsServiceControlPolicy |
 | Compute | Ec2Instance, LambdaFunction, EcsCluster, EcsService, EcsTask, EksCluster |
 | Containers | EcrRepository |
 | Storage | S3Bucket, EbsVolume |
 | Database | RdsInstance, DynamoDbTable, ElasticsearchDomain, ElasticacheCluster |
-| Networking | Vpc, Subnet, SecurityGroup, NetworkAcl, InternetGateway, NatGateway, ElasticIp, RouteTable, Alb, Elb, TargetGroup, Route53HostedZone, NetworkFirewall, CloudfrontDistribution |
-| Identity/Security | IamUser, IamRole, IamPolicy, AcmCertificate, SecretsManagerSecret, SsmParameter |
+| Networking | Vpc, Subnet, SecurityGroup, NetworkAcl, InternetGateway, NatGateway, ElasticIp, RouteTable, Alb, Elb, TargetGroup, Route53HostedZone, NetworkFirewall, CloudfrontDistribution, TransitGateway, TransitGatewayAttachment |
+| Identity/Security | IamUser, IamRole, IamPolicy, AcmCertificate, SecretsManagerSecret, SsmParameter, AwsIdentityCenterInstance |
 | AI | BedrockModel, SagemakerEndpoint |
 | Observability | CloudwatchLogGroup |
 | Integration | EventbridgeRule |
@@ -195,9 +200,10 @@ The categories (representative; the manifest is the canonical, enforced list):
 
 | Category | Edge Types | Description |
 | --- | --- | --- |
-| Structural | DIVIDED_INTO_AZ | Region → availability zone reference topology (parent→child) |
+| Structural | DIVIDED_INTO_AZ, NESTED_UNDER_PARENT | Region → availability zone reference topology (parent→child); the Organizations tree (child→parent) |
+| Network attachment | ATTACHED_TO_TRANSIT_GATEWAY, ATTACHES_VPC, PEERS_WITH_TRANSIT_GATEWAY | A transit gateway attachment to its gateway, its VPC, or its peer gateway |
 | Operational | INVOKES_LAMBDA, ROUTES_TRAFFIC, WRITES_LOGS, RETRIEVES_CONTENT_FROM, RETRIEVES_CERT_FROM | Runtime actions, traffic, and data retrieval (`_FROM` = data-backwards) |
-| Access/Security | ASSUMES_ROLE, FEDERATES_INTO_ROLE | IAM role assumption and federated identity |
+| Access/Security | ASSUMES_ROLE, FEDERATES_INTO_ROLE, ATTACHED_TO_TARGET, TRUSTS_IDENTITY_SOURCE | IAM role assumption and federated identity; SCP attachment; Identity Center's external identity provider |
 
 Edge types use explicit `sources` and `targets` constraints where the relationship is well-defined (e.g. `ASSUMES_ROLE` from IAM users/roles, Lambda functions, and EventBridge rules to IAM roles; `RETRIEVES_CONTENT_FROM` from CloudFront distributions to S3 buckets). Where one end is genuinely open, only the other is constrained (e.g. `INVOKES_LAMBDA` fixes its target to `aws_lambda` and leaves the source open).
 
@@ -370,6 +376,142 @@ Plugin-specific tests cover only domain behavior (field defaults, configuration 
 | req-aws-core-validation-1 | Structure Level Passes | Implemented | Plugin passes `validate_plugin --level structure`. | |
 | req-aws-core-validation-2 | Loads Level Passes | Implemented | Plugin passes `validate_plugin --level loads`. | |
 | req-aws-core-validation-3 | Runs Level Passes | Implemented | Plugin passes `validate_plugin --level runs`. | |
+
+### Organizations Tree
+----
+RID: `req-aws-core-organizations`
+
+Status: `Implemented`
+
+The plugin can draw an AWS Organizations tree: the organization, its organizational units, the
+member accounts in them, and the service control policies attached anywhere in it. These are
+**design vocabulary**: no collector emits them yet, so they have no collection-manifest entry, and
+every field is one AWS reports so a later collector fills the same fields.
+
+#### Implementation
+
+- `aws_core__aws_organization`: `name`, `organization_id` (`o-…`), `root_id` (`r-…`),
+  `management_account_id`, `feature_set` (`ALL` / `CONSOLIDATED_BILLING`), `partition` (`aws` /
+  `aws-us-gov`). Source: `organizations:DescribeOrganization` and `ListRoots`; the partition is the
+  organization ARN's partition segment. An organization has no name in AWS, so `name` is the label
+  its author or collector gives it. It carries no `tags`: AWS cannot tag an organization.
+  Blank means not observed for every id and enum field on these types, as on
+  `aws_elb.lb_type`: `""` is in each enum, and nothing here is nullable except the transit
+  gateway's integer and boolean options.
+- `aws_core__aws_organizational_unit`: `name`, `ou_id` (`ou-…`), `tags`.
+- `aws_core__aws_service_control_policy`: `name`, `policy_id` (`p-…`), `description`,
+  `aws_managed`, `tags`. The policy document is not stored. No source fills a typed summary of it
+  yet, and a raw document blob is the unsourced JSON the model contract forbids; `description`
+  carries the author's statement of what the policy does.
+- **The organization is its own root.** AWS allows exactly one root per organization and the root
+  has no facts of its own besides its id (and which policy types are enabled on it). A separate root
+  node would stand for the same thing as the organization node. So the root's id is `root_id` on the
+  organization, and every edge that lands on "the root" (a top-level OU, an account directly under
+  the root, a policy attached at the root) lands on the organization node.
+- `NESTED_UNDER_PARENT` (OU or account → OU or organization): AWS's single parent/child
+  relationship. `organizations:ListParents` takes an account or an OU and returns an OU or the root,
+  so OU nesting and account placement are one edge type, not two.
+- `ATTACHED_TO_TARGET` (service control policy → OU, account or organization):
+  `organizations:AttachPolicy(PolicyId, TargetId)`. The `_TO` is the locative preposition of
+  "attached to" (the add-edge carve-out), and the edge is scoped to SCPs, not a generic attachment.
+- Account membership is an edge and not a field on the account: the tree changes when an account
+  is moved, and an edge is what `MoveAccount` changes.
+- **Declared, not enforced on write.** tap_grid checks an edge by permission union
+  (`spec-grid-edge.md`): an edge is allowed if the edge type's declaration *or* the source and
+  target nodes' own `OUTBOUND_EDGES` / `INBOUND_EDGES` permit it. aws_core models declare neither,
+  so today any aws_core node pair passes the node side and a write outside an edge's declared pairs
+  still succeeds. This holds for every aws_core edge type, not only these; the declarations are what
+  `validate_plugin`, queries and readers rely on.
+- No containment is declared. Both edges point child → parent (and policy → target), and
+  `CONTAINMENT_EDGES` can only name outbound edges; an account also outlives its organization.
+
+#### Acceptance Criteria
+
+| ACID | Title | Status | Description | Notes |
+| --- | --- | :---: | --- | --- |
+| req-aws-core-organizations-1 | Keyed On AWS Ids | Implemented | Organization, OU and SCP declare `NATURAL_KEY` on `organization_id`, `ou_id` and `policy_id`. | |
+| req-aws-core-organizations-2 | Designable Before AWS Mints Ids | Implemented | Each type creates with only `name`; a blank id is not observed, and two id-less designs stay two nodes. | |
+| req-aws-core-organizations-3 | Ids Validated | Implemented | Each id field validates against AWS's documented id pattern, or is blank. | |
+| req-aws-core-organizations-4 | Organization Is Its Own Root | Implemented | There is no root type; `root_id` is a field on the organization, and root-level edges target the organization. | |
+| req-aws-core-organizations-5 | Tree Edge | Implemented | `NESTED_UNDER_PARENT` declares OU or account → OU or organization and no other pair. | |
+| req-aws-core-organizations-6 | SCP Attachment Edge | Implemented | `ATTACHED_TO_TARGET` declares SCP → OU, account or organization and no other pair. | |
+| req-aws-core-organizations-7 | No Policy Document Blob | Implemented | The SCP model carries no policy document or `configuration` field. | A typed summary field can be added when a source fills it. |
+
+### IAM Identity Center
+----
+RID: `req-aws-core-identity-center`
+
+Status: `Implemented`
+
+The plugin can draw an IAM Identity Center instance and the external identity provider it takes its
+workforce users from (for example Okta). Design vocabulary, as above.
+
+#### Implementation
+
+- `aws_core__aws_identity_center_instance`: `name`, `instance_arn`, `identity_store_id`,
+  `owner_account_id`, `home_region`, `tags`. Source: `sso-admin:ListInstances` /
+  `DescribeInstance`; `home_region` is the region that call is made in, because the instance ARN
+  carries no region.
+- `TRUSTS_IDENTITY_SOURCE` (instance → external identity provider). AWS calls the provider the
+  instance's *identity source*; the instance accepts SAML 2.0 assertions from it. The target is
+  **open** (omitted): the provider is another plugin's node, most often an Okta application, and
+  aws_core declares no plugin dependency. identity_core's `oidc_issuer` is not the target either:
+  Identity Center federates over SAML, not OIDC. An instance that uses its own identity store or
+  Active Directory has no edge of this type.
+
+#### Acceptance Criteria
+
+| ACID | Title | Status | Description | Notes |
+| --- | --- | :---: | --- | --- |
+| req-aws-core-identity-center-1 | Keyed On Instance ARN | Implemented | The instance declares `NATURAL_KEY = ("instance_arn",)`; the ARN validates against AWS's pattern or is blank. | |
+| req-aws-core-identity-center-2 | Designable Before AWS Mints Ids | Implemented | The instance creates with only `name`. | |
+| req-aws-core-identity-center-3 | Open Identity-Source Edge | Implemented | `TRUSTS_IDENTITY_SOURCE` declares only an Identity Center instance as its source, and leaves its target open. | aws_core stays dependency-free. |
+
+### Transit Gateway
+----
+RID: `req-aws-core-transit-gateway`
+
+Status: `Implemented`
+
+The plugin can draw transit gateways, their VPC attachments, and transit gateway peering. Design
+vocabulary, as above.
+
+#### Implementation
+
+- `aws_core__aws_transit_gateway`: `name`, `transit_gateway_id` (`tgw-…`), `owner_account_id`,
+  `region`, `amazon_side_asn`, `auto_accept_shared_attachments`,
+  `default_route_table_association`, `default_route_table_propagation`, `tags`. Source:
+  `ec2:DescribeTransitGateways`; the three flags come from its `Options` (`enable` / `disable`
+  there, `true` / `false` here, null when not observed).
+- `aws_core__aws_transit_gateway_attachment`: `name`, `attachment_id` (`tgw-attach-…`),
+  `resource_type` (AWS's `TransitGatewayAttachmentResourceType` enum: `vpc`, `vpn`,
+  `vpn-concentrator`, `direct-connect-gateway`, `connect`, `peering`, `tgw-peering`,
+  `network-function`), `resource_owner_account_id`, `tags`. Source:
+  `ec2:DescribeTransitGatewayAttachments`.
+- **Account ownership.** aws_core attaches a collected resource to its account through the
+  collection-path dimension (`aws_account`), not through an edge or field. These two types add a
+  typed owner field only where AWS reports one on the item and it can differ from the observing
+  account: a transit gateway is routinely shared through AWS RAM (`OwnerId` →
+  `owner_account_id`), and a cross-account attachment's VPC belongs to another account
+  (`ResourceOwnerId` → `resource_owner_account_id`). The attachment does not repeat its gateway's
+  owner; that is on the gateway node.
+- `ATTACHED_TO_TRANSIT_GATEWAY` (attachment → its transit gateway, `TransitGatewayId`).
+- `ATTACHES_VPC` (VPC attachment → VPC, `ResourceId` when `ResourceType` is `vpc`).
+- `PEERS_WITH_TRANSIT_GATEWAY` (peering attachment → peer transit gateway, `ResourceId` when
+  `ResourceType` is `peering`). A separate edge from `ATTACHED_TO_TRANSIT_GATEWAY` because the local
+  and the far gateway are two relationships.
+- `ROUTES_TRAFFIC` is not reused: attachment is a structural connection, not a route. Transit
+  gateway route tables, when modelled, are where `ROUTES_TRAFFIC` applies. VPN, Direct Connect and
+  Connect attachments have no far-side node type in aws_core yet, so they carry no far-side edge.
+
+#### Acceptance Criteria
+
+| ACID | Title | Status | Description | Notes |
+| --- | --- | :---: | --- | --- |
+| req-aws-core-transit-gateway-1 | Keyed On AWS Ids | Implemented | Transit gateway and attachment declare `NATURAL_KEY` on `transit_gateway_id` and `attachment_id`; each validates against AWS's id pattern or is blank. | |
+| req-aws-core-transit-gateway-2 | Designable Before AWS Mints Ids | Implemented | Each type creates with only `name`. | |
+| req-aws-core-transit-gateway-3 | Typed Options | Implemented | `amazon_side_asn` is an integer in AWS's ASN range; the three option flags are nullable booleans; `resource_type` is AWS's enum. | |
+| req-aws-core-transit-gateway-4 | Attachment Edges | Implemented | `ATTACHED_TO_TRANSIT_GATEWAY` and `PEERS_WITH_TRANSIT_GATEWAY` declare attachment → transit gateway; `ATTACHES_VPC` declares attachment → VPC; none declares any other pair. | |
 
 ### v0 Non-Goals
 ----

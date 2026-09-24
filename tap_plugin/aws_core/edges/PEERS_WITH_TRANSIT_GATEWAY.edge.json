@@ -1,0 +1,14 @@
+{
+  "slug": "PEERS_WITH_TRANSIT_GATEWAY__aws_core",
+  "name": "Peers With Transit Gateway",
+  "description": "A peering transit gateway attachment connects its transit gateway to a peer transit gateway, usually in another region or account: the gateway named by the attachment's ResourceId when ResourceType is peering (attachment -> peer transit gateway). Distinct from ATTACHED_TO_TRANSIT_GATEWAY, which names the attachment's own (local) gateway.",
+  "sources": [
+    "aws_core__aws_transit_gateway_attachment"
+  ],
+  "targets": [
+    "aws_core__aws_transit_gateway"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}

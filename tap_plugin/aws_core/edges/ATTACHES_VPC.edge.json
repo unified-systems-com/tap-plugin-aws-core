@@ -1,0 +1,14 @@
+{
+  "slug": "ATTACHES_VPC__aws_core",
+  "name": "Attaches VPC",
+  "description": "A VPC-type transit gateway attachment connects a VPC to its transit gateway: the VPC named by the attachment's ResourceId when ResourceType is vpc (attachment -> VPC). The VPC may be in another account, recorded as the attachment's resource_owner_account_id.",
+  "sources": [
+    "aws_core__aws_transit_gateway_attachment"
+  ],
+  "targets": [
+    "aws_core__aws_vpc"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}

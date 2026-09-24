@@ -1,0 +1,11 @@
+{
+  "slug": "TRUSTS_IDENTITY_SOURCE__aws_core",
+  "name": "Trusts Identity Source",
+  "description": "An IAM Identity Center instance takes its workforce users from an external identity provider: AWS calls this the instance's identity source, and the instance accepts SAML 2.0 assertions from it (instance -> provider). The target is WILDCARD (omitted) because the provider is another plugin's node, most often an Okta application, and aws_core declares no dependency on any identity plugin. It is not identity_core's oidc_issuer either: Identity Center federates over SAML, not OIDC. An instance using its own identity store or Active Directory has no edge of this type.",
+  "sources": [
+    "aws_core__aws_identity_center_instance"
+  ],
+  "default_dimensions": {
+    "tap.cloud": "aws"
+  }
+}
