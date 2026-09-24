@@ -240,7 +240,7 @@ class Migration(migrations.Migration):
                     "description",
                     models.CharField(blank=True, default="", max_length=512),
                 ),
-                ("aws_managed", models.BooleanField(default=False)),
+                ("aws_managed", models.BooleanField(blank=True, default=None, null=True)),
                 ("tags", models.JSONField(blank=True, default=dict)),
                 (
                     "entity",
@@ -540,7 +540,7 @@ class Migration(migrations.Migration):
                     "description",
                     models.CharField(blank=True, default="", max_length=512),
                 ),
-                ("aws_managed", models.BooleanField(default=False)),
+                ("aws_managed", models.BooleanField(blank=True, default=None, null=True)),
                 ("tags", models.JSONField(blank=True, default=dict)),
                 ("history_id", models.AutoField(primary_key=True, serialize=False)),
                 ("history_date", models.DateTimeField(db_index=True)),

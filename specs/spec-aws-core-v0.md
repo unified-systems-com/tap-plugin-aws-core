@@ -400,9 +400,13 @@ every field is one AWS reports so a later collector fills the same fields.
   gateway's integer and boolean options.
 - `aws_core__aws_organizational_unit`: `name`, `ou_id` (`ou-…`), `tags`.
 - `aws_core__aws_service_control_policy`: `name`, `policy_id` (`p-…`), `description`,
-  `aws_managed`, `tags`. The policy document is not stored. No source fills a typed summary of it
+  `aws_managed` (null when not observed), `tags`. The policy document is not stored. No source fills a typed summary of it
   yet, and a raw document blob is the unsourced JSON the model contract forbids; `description`
   carries the author's statement of what the policy does.
+- **SCP identity.** `policy_id` alone is the key. A customer policy's id is unique across AWS. An
+  AWS-managed policy such as FullAWSAccess has the same id (`p-FullAWSAccess`) and the same ARN in
+  every organization because it is one AWS-owned object, so it is one node and each organization's
+  use of it is its own `ATTACHED_TO_TARGET` edge.
 - **The organization is its own root.** AWS allows exactly one root per organization and the root
   has no facts of its own besides its id (and which policy types are enabled on it). A separate root
   node would stand for the same thing as the organization node. So the root's id is `root_id` on the
@@ -510,7 +514,7 @@ vocabulary, as above.
 | --- | --- | :---: | --- | --- |
 | req-aws-core-transit-gateway-1 | Keyed On AWS Ids | Implemented | Transit gateway and attachment declare `NATURAL_KEY` on `transit_gateway_id` and `attachment_id`; each validates against AWS's id pattern or is blank. | |
 | req-aws-core-transit-gateway-2 | Designable Before AWS Mints Ids | Implemented | Each type creates with only `name`. | |
-| req-aws-core-transit-gateway-3 | Typed Options | Implemented | `amazon_side_asn` is an integer in AWS's ASN range; the three option flags are nullable booleans; `resource_type` is AWS's enum. | |
+| req-aws-core-transit-gateway-3 | Typed Options | Implemented | `amazon_side_asn` is null or an integer in one of AWS's two private ranges (64512-65534, 4200000000-4294967294); the three option flags are nullable booleans; `resource_type` is AWS's enum. | |
 | req-aws-core-transit-gateway-4 | Attachment Edges | Implemented | `ATTACHED_TO_TRANSIT_GATEWAY` and `PEERS_WITH_TRANSIT_GATEWAY` declare attachment → transit gateway; `ATTACHES_VPC` declares attachment → VPC; none declares any other pair. | |
 
 ### v0 Non-Goals

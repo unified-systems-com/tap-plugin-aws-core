@@ -44,7 +44,13 @@ class TransitGateway(BaseModel):
         "transit_gateway_id": {"type": "string", "pattern": "^(tgw-[0-9a-f]{8,17})?$"},
         "owner_account_id": {"type": "string", "pattern": "^([0-9]{12})?$"},
         "region": {"type": "string"},
-        "amazon_side_asn": {"type": ["integer", "null"], "minimum": 1, "maximum": 4294967294},
+        "amazon_side_asn": {
+            "anyOf": [
+                {"type": "null"},
+                {"type": "integer", "minimum": 64512, "maximum": 65534},
+                {"type": "integer", "minimum": 4200000000, "maximum": 4294967294},
+            ]
+        },
         "auto_accept_shared_attachments": {"type": ["boolean", "null"]},
         "default_route_table_association": {"type": ["boolean", "null"]},
         "default_route_table_propagation": {"type": ["boolean", "null"]},
@@ -61,7 +67,8 @@ class TransitGateway(BaseModel):
     transit_gateway_id = models.CharField(max_length=32, blank=True, default="", db_index=True)
     owner_account_id = models.CharField(max_length=12, blank=True, default="")
     region = models.CharField(max_length=32, blank=True, default="")
-    # Options.AmazonSideAsn: 64512-65534 or 4200000000-4294967294, so wider than a 32-bit signed int.
+    # Options.AmazonSideAsn: AWS accepts only the private ranges 64512-65534 and 4200000000-4294967294
+    # (the second is wider than a 32-bit signed int); the schema allows exactly those, or null.
     amazon_side_asn = models.BigIntegerField(null=True, blank=True, default=None)
     # Options.AutoAcceptSharedAttachments / DefaultRouteTableAssociation / DefaultRouteTablePropagation:
     # AWS reports "enable" / "disable"; true / false here, null when not observed.

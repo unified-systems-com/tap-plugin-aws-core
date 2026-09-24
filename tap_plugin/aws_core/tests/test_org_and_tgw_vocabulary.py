@@ -159,6 +159,25 @@ class TestCreate:
         assert unobserved.auto_accept_shared_attachments is None
         assert not _node(TGW, {"name": "x", "amazon_side_asn": 0}).success
 
+    @pytest.mark.parametrize("asn", [64512, 65534, 4200000000, 4294967294])
+    def test_asn_in_aws_private_ranges_is_accepted(self, asn: int) -> None:
+        assert _node(TGW, {"name": "hub", "amazon_side_asn": asn}).success
+
+    @pytest.mark.parametrize("asn", [64511, 65535, 4199999999, 4294967295, 1])
+    def test_asn_outside_aws_private_ranges_is_refused(self, asn: int) -> None:
+        assert not _node(TGW, {"name": "hub", "amazon_side_asn": asn}).success
+
+    def test_asn_explicit_null_is_accepted(self) -> None:
+        result = _node(TGW, {"name": "hub", "amazon_side_asn": None})
+        assert result.success, result.errors
+        assert TransitGateway.all_objects.get(entity_id=result.entity_id).amazon_side_asn is None
+
+    def test_designed_scp_is_not_asserted_customer_managed(self) -> None:
+        unobserved = _node(SCP, {"name": "deny-leave-org"})
+        assert AwsServiceControlPolicy.all_objects.get(entity_id=unobserved.entity_id).aws_managed is None
+        managed = _node(SCP, {"name": "FullAWSAccess", "policy_id": "p-FullAWSAccess", "aws_managed": True})
+        assert AwsServiceControlPolicy.all_objects.get(entity_id=managed.entity_id).aws_managed is True
+
     def test_attachment_resource_type_is_aws_enum(self) -> None:
         assert _node(ATT, {"name": "a", "resource_type": "tgw-peering"}).success
         assert not _node(ATT, {"name": "a", "resource_type": "transit"}).success

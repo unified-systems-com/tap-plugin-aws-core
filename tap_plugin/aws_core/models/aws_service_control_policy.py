@@ -35,14 +35,18 @@ class AwsServiceControlPolicy(BaseModel):
         }
     }
 
-    # AWS's policy id (p-…; the AWS-managed FullAWSAccess policy is p-FullAWSAccess).
+    # AWS's policy id (p-…). A customer policy's id is unique across AWS. An AWS-managed policy such as
+    # FullAWSAccess has the same id (p-FullAWSAccess) and the same ARN
+    # (arn:aws:organizations::aws:policy/service_control_policy/p-FullAWSAccess) in every organization,
+    # because it is one AWS-owned object. So it is one node, and each organization's use of it is its own
+    # ATTACHED_TO_TARGET edge. That is intended, not a collision.
     NATURAL_KEY: ClassVar[tuple[str, ...]] = ("policy_id",)
 
     FIELD_CRUD_SCHEMA: ClassVar[dict[str, Any]] = {
         "name": {"type": "string", "minLength": 1},
         "policy_id": {"type": "string", "pattern": "^(p-[0-9a-zA-Z_]{8,128})?$"},
         "description": {"type": "string"},
-        "aws_managed": {"type": "boolean"},
+        "aws_managed": {"type": ["boolean", "null"]},
         "tags": {"type": "object", "additionalProperties": {"type": "string"}},
     }
 
@@ -55,7 +59,8 @@ class AwsServiceControlPolicy(BaseModel):
     name = models.CharField(max_length=128, blank=True, default="")
     policy_id = models.CharField(max_length=130, blank=True, default="", db_index=True)
     description = models.CharField(max_length=512, blank=True, default="")
-    aws_managed = models.BooleanField(default=False)
+    # PolicySummary.AwsManaged; null when not observed, so a designed policy is not asserted customer-managed.
+    aws_managed = models.BooleanField(null=True, blank=True, default=None)
     # AWS tags, canonical flat {str: str} (req-aws-core-fields-4). Source: organizations:ListTagsForResource.
     tags = models.JSONField(default=dict, blank=True)
 
