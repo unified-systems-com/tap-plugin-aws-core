@@ -2,22 +2,35 @@
  * layout-hints — placement a layout reads from a node's own tags, never from its name or id
  * (req-aws-core-layout-hints).
  *
- * Three neutral tag keys, set on the node in the data that seeds or collects it:
+ * Neutral tag keys, set on the node in the data that seeds or collects it:
  *
- *   layout:order   integer; siblings are placed in ascending order (a row left to right, a
- *                  column top to bottom). Unordered siblings come after the ordered ones, by label.
- *   layout:column  integer; which column of its parent a node sits in (0 = main, default).
- *                  Used by parents laid out as columns (stampColumns).
- *   layout:fill    "true"; the box widens to its lane: the width of the column it shares with
- *                  other siblings, or else the rest of the row it sits in.
+ *   layout:order    integer; siblings are placed in ascending order (a row left to right, a
+ *                   column top to bottom). Unordered siblings follow the ordered ones, by label.
+ *   layout:column   integer; which column of its parent a node sits in (0 = main, default),
+ *                   where the parent lays its children out in columns (stampColumns).
+ *   layout:columns  integer, on a PARENT; at most this many children per row, wrapping into
+ *                   further rows. 1 stacks the children in one column.
+ *   layout:row      integer; which row of its parent a node sits in, where the parent groups
+ *                   its children into rows by tag (arrangeRows with byRowTag).
+ *   layout:fill     "true"; the box widens to its lane: its parent's inner width when the parent
+ *                   holds one column, the widest box of its column when the parent holds several,
+ *                   or else the rest of the row it sits in.
  *
- * The helpers stamp `_stage` / `_order` for tap_viz's `ranked` inner layout (nested-projection.js)
- * and stretch filled boxes after projection. Any layout module may import them; they know no
- * entity type and no deployment.
+ * The helpers stamp `_stage` / `_order` for tap_viz's `ranked` inner layout (nested-projection.js).
+ * A parent laid out in several rows gets one invisible row box per row (type `_layout_row`,
+ * joined by `_LAYOUT_ROW` view edges): the caller adds ROW_RELATIONSHIP and rowLayouts() to its
+ * projectNested config, so each row is sized bottom-up like any other box. Everything here acts on
+ * the view (cy) only. The helpers know no entity type and no deployment.
  */
 
-export const LAYOUT_TAG = {order: "layout:order", column: "layout:column", fill: "layout:fill"};
+export const LAYOUT_TAG = {
+    order: "layout:order", column: "layout:column", columns: "layout:columns", row: "layout:row", fill: "layout:fill",
+};
+export const ROW = {type: "_layout_row", edge: "_LAYOUT_ROW"};
+//: Add to projectNested's relationships whenever arrangeRows may run.
+export const ROW_RELATIONSHIP = {name: "layout-rows", gryphon: `(parent)-[:${ROW.edge}]->(child)`};
 
+const HIDDEN = "tap-elevation-hidden";
 //: Offset for siblings with no layout:order, so they always follow the ordered ones.
 const UNORDERED = 100000;
 
@@ -30,7 +43,7 @@ export function intTag(n, key) {
 }
 
 export function isFill(n) {
-    return String((n.data("tags") || {})[LAYOUT_TAG.fill] || "") === "true";
+    return n.data("_layout_fill") === true || String((n.data("tags") || {})[LAYOUT_TAG.fill] || "") === "true";
 }
 
 export function childrenOf(cy, parentId) {
@@ -49,30 +62,100 @@ function _byLabel(a, b) {
     return String(a.data("label") || "").localeCompare(String(b.data("label") || ""));
 }
 
-//: One row: each sibling its own `ranked` column, in layout:order; unordered ones after, by label.
-export function stampRow(siblings) {
-    const unordered = siblings.filter((n) => intTag(n, LAYOUT_TAG.order) === null).sort(_byLabel);
-    siblings.forEach((n) => {
-        const order = intTag(n, LAYOUT_TAG.order);
-        if (order !== null) {
-            n.data("_stage", order);
-            n.data("_order", order);
-        }
-    });
-    unordered.forEach((n, i) => {
-        n.data("_stage", UNORDERED + i);
-        n.data("_order", UNORDERED + i);
-    });
+//: Siblings in layout:order, unordered ones after, by label.
+export function sortSiblings(siblings) {
+    const key = (n) => { const o = intTag(n, LAYOUT_TAG.order); return o === null ? UNORDERED : o; };
+    return [...siblings].sort((a, b) => (key(a) - key(b)) || _byLabel(a, b));
 }
 
 //: Columns: layout:column picks the column (default 0), layout:order the place in it.
 export function stampColumns(siblings) {
-    siblings.forEach((n) => {
+    sortSiblings(siblings).forEach((n, i) => {
         const column = intTag(n, LAYOUT_TAG.column);
-        const order = intTag(n, LAYOUT_TAG.order);
         n.data("_stage", column === null ? 0 : column);
-        n.data("_order", order === null ? UNORDERED : order);
+        n.data("_order", i);
     });
+}
+
+/**
+ * Lay a parent's children out in rows, for a parent whose inner layout is `ranked`.
+ *
+ * Rows come from `layout:row` when `byRowTag` is set (untagged children each take their own row
+ * after the tagged ones), else from wrapping the ordered children at `columns` per row
+ * (default: the parent's layout:columns tag, else unlimited). One row: each child its own
+ * `ranked` column. Every row a single child: one column, stacked. Otherwise each row becomes an
+ * invisible row box holding its children; the children's containment edges to the parent are
+ * hidden in the view so that the row box, not the parent, holds them.
+ *
+ * @param {cytoscape.Core} cy
+ * @param {cytoscape.NodeSingular} parent
+ * @param {cytoscape.NodeSingular[]} children - the parent's children, found by the caller
+ * @param {{columns?: number, byRowTag?: boolean, containEdges?: cytoscape.EdgeCollection}} [opts]
+ *   containEdges: the edges that make `parent` the parent of each child (hidden when rows form).
+ */
+export function arrangeRows(cy, parent, children, opts) {
+    const o = opts || {};
+    const ordered = sortSiblings(children);
+    let rows;
+    if (o.byRowTag) {
+        const tagged = new Map();
+        const loose = [];
+        ordered.forEach((n) => {
+            const r = intTag(n, LAYOUT_TAG.row);
+            if (r === null) loose.push([n]);
+            else { if (!tagged.has(r)) tagged.set(r, []); tagged.get(r).push(n); }
+        });
+        rows = [...[...tagged.keys()].sort((a, b) => a - b).map((k) => tagged.get(k)), ...loose];
+    } else {
+        const tagCols = intTag(parent, LAYOUT_TAG.columns);
+        const k = o.columns || (tagCols && tagCols > 0 ? tagCols : ordered.length || 1);
+        rows = [];
+        for (let i = 0; i < ordered.length; i += k) rows.push(ordered.slice(i, i + k));
+    }
+    if (rows.length <= 1) {
+        ordered.forEach((n, i) => { n.data("_stage", i); n.data("_order", i); });
+        return;
+    }
+    if (rows.every((r) => r.length === 1)) {
+        rows.forEach(([n], i) => { n.data("_stage", 0); n.data("_order", i); });
+        return;
+    }
+    const childIds = new Set(ordered.map((n) => n.id()));
+    const pid = parent.id();
+    if (o.containEdges) {
+        o.containEdges.filter((e) => (childIds.has(e.source().id()) && e.target().id() === pid)
+            || (e.source().id() === pid && childIds.has(e.target().id()))).addClass(HIDDEN);
+    }
+    rows.forEach((row, r) => {
+        const rowId = `${ROW.type}:${parent.id()}:${r}`;
+        cy.add({group: "nodes", data: {id: rowId, entity_type: ROW.type, label: "", _stage: 0, _order: r,
+                                       _layout_fill: true, _layout_inset: 0}, classes: ROW.type});
+        cy.add({group: "edges", data: {id: `${ROW.edge}:${rowId}`, source: parent.id(), target: rowId, edge_type: ROW.edge}, classes: ROW.type});
+        row.forEach((n, i) => {
+            n.data("_stage", i);
+            n.data("_order", i);
+            cy.add({group: "edges", data: {id: `${ROW.edge}:${n.id()}`, source: rowId, target: n.id(), edge_type: ROW.edge}, classes: ROW.type});
+        });
+    });
+}
+
+//: projectNested pieces for row boxes: no padding, children in one ranked row.
+export function rowLayouts(gap) {
+    return {
+        padding: {[ROW.type]: 0},
+        innerLayout: {[ROW.type]: {name: "ranked", sort: "order", columnGap: gap, rowGap: gap}},
+        baseSize: {[ROW.type]: {width: 1, height: 1}},
+    };
+}
+
+//: Row boxes draw nothing; call after placeParentLabels.
+export function styleRows(cy) {
+    cy.style()
+        .selector(`node.${ROW.type}`)
+        .style({"background-opacity": 0, "border-width": 0, "label": "", "events": "no"})
+        .selector(`edge.${ROW.type}`)
+        .style({"display": "none"})
+        .update();
 }
 
 function _depth(cy, n) {
@@ -86,28 +169,36 @@ function _depth(cy, n) {
 }
 
 /**
- * Stretch every box tagged layout:fill, parents before children.
- *
- * In a column (siblings sharing its `_stage`) it widens to the column's widest box, keeping the
- * column's centre. Otherwise it takes the rest of its row (siblings whose vertical extent overlaps
- * it) inside the parent's inner width, and the row is re-packed left to right with its gap.
+ * Stretch every fill box, parents before children.
  *
  * @param {cytoscape.Core} cy
- * @param {{inset?: number}} [opts] - the parent's side padding (default 24).
+ * @param {{inset?: number, insets?: Object<string, number>}} [opts] - a parent's side padding:
+ *   `insets` by the parent's entity_type, else `inset` (default 24). Row boxes have none.
  */
 export function fill(cy, opts) {
-    const inset = (opts && opts.inset != null) ? opts.inset : 24;
+    const o = opts || {};
+    const insetOf = (p) => {
+        if (p.data("_layout_inset") != null) return p.data("_layout_inset");
+        const t = p.data("entity_type");
+        if (o.insets && o.insets[t] != null) return o.insets[t];
+        return o.inset != null ? o.inset : 24;
+    };
     const fills = cy.nodes().filter(isFill).sort((a, b) => _depth(cy, a) - _depth(cy, b));
     fills.forEach((n) => {
         const parentId = n.data("_viewport_parent");
         if (!parentId) return;
         const parent = cy.getElementById(parentId);
+        const inset = insetOf(parent);
         const siblings = childrenOf(cy, parentId);
         const stage = n.data("_stage");
-        const column = Number.isInteger(stage) ? siblings.filter((s) => s.id() !== n.id() && s.data("_stage") === stage) : [];
-        if (column.length) {
-            const width = Math.max(...column.map((s) => s.width()));
-            if (width > n.width()) n.style({width});
+        const inColumn = Number.isInteger(stage) ? siblings.filter((s) => s.data("_stage") === stage) : [n];
+        if (inColumn.length > 1) {
+            const oneColumn = inColumn.length === siblings.length;
+            const width = oneColumn ? parent.width() - inset * 2 : Math.max(...inColumn.map((s) => s.width()));
+            if (width > n.width()) {
+                n.style({width});
+                if (oneColumn) moveTree(cy, n, parent.position().x - n.position().x, 0);
+            }
             return;
         }
         const innerLeft = parent.position().x - parent.width() / 2 + inset;

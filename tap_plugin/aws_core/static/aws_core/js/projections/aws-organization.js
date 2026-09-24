@@ -11,7 +11,9 @@
  *   - the organization lays its children out in columns: `layout:column` picks the column
  *     (0, the default, is the main one), `layout:order` the place in it, top to bottom;
  *   - an OU lays its children out in one row, in `layout:order`, unordered ones after by label;
- *   - a box tagged `layout:fill` widens to its column, or to the rest of its row.
+ *     an OU tagged `layout:columns` wraps at that many per row (1 stacks them in a column);
+ *   - a box tagged `layout:fill` widens to its lane (its parent's single column, its column, or
+ *     the rest of its row).
  *
  * With no tags at all the tree still draws: one column under the organization, rows by label.
  *
@@ -20,7 +22,9 @@
 
 import {projectNested} from "/static/tap_viz/js/runtime/nested-projection.js";
 import {applyStandardChrome, placeParentLabels, parentLabelInset} from "/static/tap_viz/js/runtime/chrome.js";
-import {stampColumns, stampRow, fill, childrenOf} from "/static/aws_core/js/runtime/layout-hints.js";
+import {
+    stampColumns, arrangeRows, fill, childrenOf, rowLayouts, styleRows, ROW_RELATIONSHIP,
+} from "/static/aws_core/js/runtime/layout-hints.js";
 
 const T = {
     organization: "aws_core__aws_organization",
@@ -39,14 +43,15 @@ function _edgeType(e) {
 //: Stamp `_stage` / `_order` for `ranked` from the NESTED_UNDER_PARENT edges, before projection.
 function _stamp(cy) {
     const byParent = new Map();
-    cy.edges().filter((e) => _edgeType(e) === NESTED).forEach((e) => {
+    const nested = cy.edges().filter((e) => _edgeType(e) === NESTED);
+    nested.forEach((e) => {
         const parent = e.target();
         if (!byParent.has(parent.id())) byParent.set(parent.id(), {parent, children: []});
         byParent.get(parent.id()).children.push(e.source());
     });
     byParent.forEach(({parent, children}) => {
         if (parent.data("entity_type") === T.organization) stampColumns(children);
-        else stampRow(children);
+        else arrangeRows(cy, parent, children, {containEdges: nested});
     });
 }
 
@@ -60,18 +65,21 @@ export async function execute(context) {
     _stamp(cy);
     const types = [...new Set(cy.nodes().map((n) => n.data("entity_type")).filter(Boolean))];
     const baseSizes = Object.fromEntries(types.map((t) => [t, CONTAINERS.includes(t) ? GEOM.box : GEOM.leaf]));
+    const rows = rowLayouts(24);
 
     const result = await projectNested(cy, {
         relationships: [
             {name: "org-holds", gryphon: `(parent:${T.organization})<-[:${NESTED}]-(child)`},
             {name: "ou-holds", gryphon: `(parent:${T.ou})<-[:${NESTED}]-(child)`},
+            ROW_RELATIONSHIP,
         ],
-        baseSizes,
+        baseSizes: {...baseSizes, ...rows.baseSize},
         padding: GEOM.side,
-        paddings: Object.fromEntries(CONTAINERS.map((t) => [t, pad])),
+        paddings: {...Object.fromEntries(CONTAINERS.map((t) => [t, pad])), ...rows.padding},
         innerLayout: {name: "ranked", sort: "order", columnGap: 24, rowGap: 24},
         innerLayouts: {
             [T.organization]: {name: "ranked", sort: "order", columnGap: 56, rowGap: 36},
+            ...rows.innerLayout,
         },
     });
 
@@ -84,6 +92,7 @@ export async function execute(context) {
         parentFontSize: chrome.parentFontSize, parentFontWeight: chrome.parentFontWeight,
     });
     _style(cy);
+    styleRows(cy);
     return {warnings: result.warnings || []};
 }
 
