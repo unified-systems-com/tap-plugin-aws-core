@@ -1,0 +1,17 @@
+/* aws-counts — req-aws-core-panel-counts */
+.awc { padding: 0.75rem 1rem; }
+.awc-head { margin-bottom: 0.5rem; }
+.awc-title { font-size: 1rem; font-weight: 600; color: #1e293b; margin: 0; }
+.awc-intro { font-size: 0.8rem; color: #64748b; margin: 0.25rem 0 0; }
+.awc-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: 0.6rem; }
+.awc-tile { position: relative; display: flex; flex-direction: column; gap: 0.15rem; padding: 0.6rem 0.75rem;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 0.5rem; }
+.awc-value { font-size: 1.6rem; font-weight: 700; color: #1e293b; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.awc-label { font-size: 0.75rem; color: #64748b; }
+.awc-design { position: absolute; top: 0.4rem; right: 0.5rem; font-size: 0.6rem; text-transform: uppercase;
+  letter-spacing: 0.04em; color: #7c3aed; border: 1px solid #ddd6fe; border-radius: 0.25rem; padding: 0 0.25rem; }
+.awc-tone--attention { border-color: #f59e0b; background: #fffbeb; }
+.awc-tone--attention .awc-value { color: #b45309; }
+.awc-tone--error { border-color: #dc2626; background: #fef2f2; }
+.awc-tone--error .awc-value { color: #b91c1c; font-size: 0.9rem; }
+.awc-empty { color: #64748b; font-size: 0.85rem; }

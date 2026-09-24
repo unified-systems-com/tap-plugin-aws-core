@@ -1,0 +1,24 @@
+{% comment %}
+aws-counts — req-aws-core-panel-counts. One tile per count; a failed read says so in its tile, and a
+count made only of design nodes (dcom=design) is marked design. Text carries every state; colour is a
+second channel.
+{% endcomment %}
+<section class="awc" aria-label="{{ title|default:'AWS counts' }}">
+  {% if title or intro %}<header class="awc-head">
+    {% if title %}<h2 class="awc-title">{{ title }}</h2>{% endif %}
+    {% if intro %}<p class="awc-intro">{{ intro }}</p>{% endif %}
+  </header>{% endif %}
+  {% if tiles %}
+  <div class="awc-tiles" role="list">
+    {% for t in tiles %}
+    <div class="awc-tile{% if t.tone %} awc-tone--{{ t.tone }}{% endif %}" role="listitem" title="{{ t.note }}{% if t.error %} {{ t.error }}{% endif %}">
+      <span class="awc-value">{% if t.error %}read failed{% else %}{{ t.value }}{% endif %}</span>
+      <span class="awc-label">{{ t.label }}</span>
+      {% if t.design %}<span class="awc-design" title="Every node counted here is a design node (dcom=design): planned, not built or observed.">design</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="awc-empty">No count tiles are configured for this panel.</p>
+  {% endif %}
+</section>

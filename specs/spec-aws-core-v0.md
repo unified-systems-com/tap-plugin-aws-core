@@ -33,6 +33,10 @@ v0 is intentionally scoped to the "meat and potatoes" AWS resources common to mo
 | req-aws-core-organizations | [Organizations Tree](#organizations-tree) | Implemented | Organization (as its own root), OU and SCP design vocabulary; the tree and SCP attachment edges |
 | req-aws-core-identity-center | [IAM Identity Center](#iam-identity-center) | Implemented | Identity Center instance design vocabulary and its open edge to an external identity provider |
 | req-aws-core-transit-gateway | [Transit Gateway](#transit-gateway) | Implemented | Transit gateway and attachment design vocabulary; attachment, VPC and peering edges |
+| req-aws-core-page-dashboard | [AWS Pages](#aws-pages) | Implemented | `/aws`: count tiles, the estate as one picture, accounts per OU, boundary scope |
+| req-aws-core-page-organization | [AWS Pages](#aws-pages) | Implemented | `/aws/organization`: the OU tree, SCP attachments, boundary scope, Identity Center |
+| req-aws-core-page-network | [AWS Pages](#aws-pages) | Implemented | `/aws/network`: transit gateways, attachments, gateways, firewalls, Direct Connect |
+| req-aws-core-panel-counts | [AWS Pages](#aws-pages) | Implemented | The `aws-counts` panel type: count tiles over the estate |
 | req-aws-core-nongoals | [v0 Non-Goals](#v0-non-goals) | Proposed | Explicitly deferred concerns |
 
 ### Plugin Scope
@@ -517,6 +521,67 @@ vocabulary, as above.
 | req-aws-core-transit-gateway-2 | Designable Before AWS Mints Ids | Implemented | Each type creates with only `name`. | |
 | req-aws-core-transit-gateway-3 | Typed Options | Implemented | `amazon_side_asn` is null or an integer in one of AWS's two private ranges (64512-65534, 4200000000-4294967294); the three option flags are nullable booleans; `resource_type` is AWS's enum. | |
 | req-aws-core-transit-gateway-4 | Attachment Edges | Implemented | `ATTACHED_TO_TRANSIT_GATEWAY` and `PEERS_WITH_TRANSIT_GATEWAY` declare attachment → transit gateway; `ATTACHES_VPC` declares attachment → VPC; none declares any other pair. | |
+
+### AWS Pages
+----
+RIDs: `req-aws-core-page-dashboard`, `req-aws-core-page-organization`, `req-aws-core-page-network`,
+`req-aws-core-panel-counts`
+
+Status: `Implemented`
+
+Reusable pages over whatever AWS nodes a grid holds. Nothing on them names a deployment: a consumer
+that wants them in its own navigation adds a `NESTS_UNDER` edge from `/aws` to its page (highbar does,
+under `/highbar`). `/aws/organization` and `/aws/network` nest under `/aws` by URL. URLs carry no
+entity id.
+
+#### Implementation
+
+- Bundle `grift/pages.grift.json` (`pages` in `tap-plugin.toml`): three pages, three graph panels
+  with their projections, elevations, layouts and scene searches, five standard table panels, one
+  standard text panel and one `aws-counts` panel.
+- `/aws` (**AWS**): `counts` (aws-counts), `estate` (graph: organisation tree, transit gateways and
+  their attachments, VPCs, internet and NAT gateways, network firewalls, the boundaries OUs are scoped
+  to), `per-ou` (projection table: accounts directly in each OU), `scope` (projection table: what each
+  compliance boundary is scoped from).
+- `/aws/organization` (**Organization**): `tree` (graph: organization ⊃ OU ⊃ account, SCP →
+  target lines, OU → boundary lines, Identity Center → trusted identity source), `scp` (SCP
+  attachments), `placement` (each account and its parent).
+- `/aws/network` (**Network**): `plane` (graph: each transit gateway around its attachments, a line
+  from each VPC attachment to its VPC, peering attachments to their peer, VPCs, internet and NAT
+  gateways, firewalls), `attachments` (gateway, attachment, VPC, CIDR), `igw` (every internet
+  gateway), `dx` (Direct Connect: a text panel until aws_core carries Direct Connect types; it says
+  plainly that no connection is on the grid).
+- Layout module `static/aws_core/js/projections/aws-estate.js`, shared by the three graphs: nests on
+  `NESTED_UNDER_PARENT` (organization and OU around their children), `ATTACHED_TO_TRANSIT_GATEWAY`
+  (a gateway around its attachments) and the collector's `aws_account` dimension (an account around
+  what was collected in it); every other edge is a line; roots stack in bands. Nothing is placed by
+  name or id. Standard icon-badge node style.
+- Panel type `aws-counts` (`panels/counts/__init__.py`, `templates/aws_core/panels/counts.html`,
+  `static/aws_core/css/counts.css`), registered in `AppConfig.ready()`. `config.tiles` picks tiles
+  from a fixed catalogue (default all): accounts, OUs, SCPs, VPCs, internet gateways, internet-facing
+  load balancers, buckets not blocking public access, network firewalls, transit gateways,
+  attachments, KMS keys; `config.boundaries` (default true) adds one tile per compliance boundary
+  counting the accounts inside it, where an account is inside when it or any OU above it is
+  `SCOPED_TO_COMPLIANCE_BOUNDARY` the boundary. Reads go through Gryphon; folding is pure.
+
+#### Acceptance Criteria
+
+| ACID | Title | Status | Description | Notes |
+| --- | --- | :---: | --- | --- |
+| req-aws-core-page-dashboard-1 | Dashboard Seeded | Implemented | `/aws` exists and mounts counts, estate, per-ou and scope. | Observed on the highbar dev grid, 2026-09-24. |
+| req-aws-core-page-organization-1 | Organization Page Seeded | Implemented | `/aws/organization` exists, mounts tree, scp and placement, and its breadcrumb parent is `/aws`. | |
+| req-aws-core-page-network-1 | Network Page Seeded | Implemented | `/aws/network` exists, mounts plane, attachments, igw and dx, and its breadcrumb parent is `/aws`. | |
+| req-aws-core-page-network-2 | Direct Connect Stated, Not Invented | Implemented | With no Direct Connect vocabulary or data, the dx section says no connection is on the grid; it draws no placeholder site. | |
+| req-aws-core-panel-counts-1 | Counts Fold Purely | Implemented | Tiles fold from Gryphon envelopes by pure functions; a failed read renders "read failed", never 0. | `tests/test_counts_panel.py` |
+| req-aws-core-panel-counts-2 | Design Marked | Implemented | A tile whose counted nodes are all dcom=design is marked design. | `tests/test_counts_panel.py` |
+| req-aws-core-panel-counts-3 | Boundary Membership Follows The Tree | Implemented | An account counts inside a boundary when it or an OU above it at any depth is scoped to the boundary. | `tests/test_counts_panel.py` |
+
+#### Future
+
+- Nest designed VPCs, gateways and services in their accounts once aws_core carries containment
+  edges for design data (the pending `IN_ACCOUNT` / `IN_VPC` / `IN_SUBNET` vocabulary).
+- Replace the dx text panel with a table of connections, virtual interfaces and Direct Connect gateways
+  once those types exist.
 
 ### v0 Non-Goals
 ----
