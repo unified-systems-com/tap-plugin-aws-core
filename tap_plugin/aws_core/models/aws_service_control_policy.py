@@ -35,15 +35,23 @@ class AwsServiceControlPolicy(BaseModel):
         }
     }
 
-    # AWS's policy id (p-…). A customer policy's id is unique across AWS. An AWS-managed policy such as
-    # FullAWSAccess has the same id (p-FullAWSAccess) and the same ARN
-    # (arn:aws:organizations::aws:policy/service_control_policy/p-FullAWSAccess) in every organization,
-    # because it is one AWS-owned object. So it is one node, and each organization's use of it is its own
-    # ATTACHED_TO_TARGET edge. That is intended, not a collision.
-    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("policy_id",)
+    # Keyed on the policy ARN, not the bare id. AWS documents no global uniqueness for a customer
+    # policy's p-… id; its ARN is scoped by the management account and organization
+    # (arn:aws:organizations::<account>:policy/o-…/service_control_policy/p-…), so it is unique. An
+    # AWS-managed policy such as FullAWSAccess has one ARN in every organization
+    # (arn:aws:organizations::aws:policy/service_control_policy/p-FullAWSAccess), because it is one
+    # AWS-owned object: one node, with each organization's use of it its own ATTACHED_TO_TARGET edge.
+    NATURAL_KEY: ClassVar[tuple[str, ...]] = ("policy_arn",)
 
     FIELD_CRUD_SCHEMA: ClassVar[dict[str, Any]] = {
         "name": {"type": "string", "minLength": 1},
+        "policy_arn": {
+            "type": "string",
+            "pattern": (
+                "^(arn:aws(-us-gov|-cn)?:organizations::([0-9]{12}|aws):policy/(o-[a-z0-9]{10,32}/)?"
+                "service_control_policy/p-[0-9a-zA-Z_]{8,128})?$"
+            ),
+        },
         "policy_id": {"type": "string", "pattern": "^(p-[0-9a-zA-Z_]{8,128})?$"},
         "description": {"type": "string"},
         "aws_managed": {"type": ["boolean", "null"]},
@@ -57,7 +65,10 @@ class AwsServiceControlPolicy(BaseModel):
     CREATE_REQUIRED: ClassVar[list[str]] = ["name"]
 
     name = models.CharField(max_length=128, blank=True, default="")
-    policy_id = models.CharField(max_length=130, blank=True, default="", db_index=True)
+    policy_arn = models.CharField(max_length=512, blank=True, default="", db_index=True)
+    # The id AttachPolicy takes; also the last segment of policy_arn, kept because it is what AWS's
+    # policy APIs and the console show.
+    policy_id = models.CharField(max_length=130, blank=True, default="")
     description = models.CharField(max_length=512, blank=True, default="")
     # PolicySummary.AwsManaged; null when not observed, so a designed policy is not asserted customer-managed.
     aws_managed = models.BooleanField(null=True, blank=True, default=None)

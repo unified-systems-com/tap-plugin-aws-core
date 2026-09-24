@@ -231,11 +231,12 @@ class Migration(migrations.Migration):
                 ),
                 ("name", models.CharField(blank=True, default="", max_length=128)),
                 (
-                    "policy_id",
+                    "policy_arn",
                     models.CharField(
-                        blank=True, db_index=True, default="", max_length=130
+                        blank=True, db_index=True, default="", max_length=512
                     ),
                 ),
+                ("policy_id", models.CharField(blank=True, default="", max_length=130)),
                 (
                     "description",
                     models.CharField(blank=True, default="", max_length=512),
@@ -531,11 +532,12 @@ class Migration(migrations.Migration):
                 ),
                 ("name", models.CharField(blank=True, default="", max_length=128)),
                 (
-                    "policy_id",
+                    "policy_arn",
                     models.CharField(
-                        blank=True, db_index=True, default="", max_length=130
+                        blank=True, db_index=True, default="", max_length=512
                     ),
                 ),
+                ("policy_id", models.CharField(blank=True, default="", max_length=130)),
                 (
                     "description",
                     models.CharField(blank=True, default="", max_length=512),

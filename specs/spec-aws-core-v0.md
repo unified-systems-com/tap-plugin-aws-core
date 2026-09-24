@@ -399,14 +399,15 @@ every field is one AWS reports so a later collector fills the same fields.
   `aws_elb.lb_type`: `""` is in each enum, and nothing here is nullable except the transit
   gateway's integer and boolean options.
 - `aws_core__aws_organizational_unit`: `name`, `ou_id` (`ou-…`), `tags`.
-- `aws_core__aws_service_control_policy`: `name`, `policy_id` (`p-…`), `description`,
+- `aws_core__aws_service_control_policy`: `name`, `policy_arn`, `policy_id` (`p-…`), `description`,
   `aws_managed` (null when not observed), `tags`. The policy document is not stored. No source fills a typed summary of it
   yet, and a raw document blob is the unsourced JSON the model contract forbids; `description`
   carries the author's statement of what the policy does.
-- **SCP identity.** `policy_id` alone is the key. A customer policy's id is unique across AWS. An
-  AWS-managed policy such as FullAWSAccess has the same id (`p-FullAWSAccess`) and the same ARN in
-  every organization because it is one AWS-owned object, so it is one node and each organization's
-  use of it is its own `ATTACHED_TO_TARGET` edge.
+- **SCP identity is the ARN.** AWS documents no global uniqueness for a customer policy's `p-…` id,
+  but its ARN is scoped by management account and organization, so `policy_arn` is the key. An
+  AWS-managed policy such as FullAWSAccess has one ARN in every organization because it is one
+  AWS-owned object, so it is one node, and each organization's use of it is its own
+  `ATTACHED_TO_TARGET` edge.
 - **The organization is its own root.** AWS allows exactly one root per organization and the root
   has no facts of its own besides its id (and which policy types are enabled on it). A separate root
   node would stand for the same thing as the organization node. So the root's id is `root_id` on the
@@ -433,7 +434,7 @@ every field is one AWS reports so a later collector fills the same fields.
 
 | ACID | Title | Status | Description | Notes |
 | --- | --- | :---: | --- | --- |
-| req-aws-core-organizations-1 | Keyed On AWS Ids | Implemented | Organization, OU and SCP declare `NATURAL_KEY` on `organization_id`, `ou_id` and `policy_id`. | |
+| req-aws-core-organizations-1 | Keyed On AWS Ids | Implemented | Organization, OU and SCP declare `NATURAL_KEY` on `organization_id`, `ou_id` and `policy_arn`. | |
 | req-aws-core-organizations-2 | Designable Before AWS Mints Ids | Implemented | Each type creates with only `name`; a blank id is not observed, and two id-less designs stay two nodes. | |
 | req-aws-core-organizations-3 | Ids Validated | Implemented | Each id field validates against AWS's documented id pattern, or is blank. | |
 | req-aws-core-organizations-4 | Organization Is Its Own Root | Implemented | There is no root type; `root_id` is a field on the organization, and root-level edges target the organization. | |

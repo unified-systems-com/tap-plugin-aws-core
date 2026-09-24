@@ -37,7 +37,12 @@ VPC = "aws_core__aws_vpc"
 TYPES = [
     (AwsOrganization, "organization_id", "o-a1b2c3d4e5", "org-123"),
     (AwsOrganizationalUnit, "ou_id", "ou-ab12-cd34ef56", "ou-AB12"),
-    (AwsServiceControlPolicy, "policy_id", "p-FullAWSAccess", "policy-1"),
+    (
+        AwsServiceControlPolicy,
+        "policy_arn",
+        "arn:aws:organizations::123456789012:policy/o-a1b2c3d4e5/service_control_policy/p-examplepolicyid111",
+        "arn:aws:organizations::123456789012:policy/p-1",
+    ),
     (
         AwsIdentityCenterInstance,
         "instance_arn",
@@ -173,6 +178,10 @@ class TestCreate:
         result = _node(TGW, {"name": "hub", "amazon_side_asn": None})
         assert result.success, result.errors
         assert TransitGateway.all_objects.get(entity_id=result.entity_id).amazon_side_asn is None
+
+    def test_aws_managed_scp_arn_is_accepted(self) -> None:
+        arn = "arn:aws:organizations::aws:policy/service_control_policy/p-FullAWSAccess"
+        assert _node(SCP, {"name": "FullAWSAccess", "policy_arn": arn, "policy_id": "p-FullAWSAccess"}).success
 
     def test_designed_scp_is_not_asserted_customer_managed(self) -> None:
         unobserved = _node(SCP, {"name": "deny-leave-org"})
