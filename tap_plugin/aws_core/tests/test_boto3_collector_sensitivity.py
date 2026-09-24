@@ -66,6 +66,31 @@ class TestSchema:
     def test_unreviewed_is_a_valid_declaration(self):
         entry = self._entry()
         entry["sensitivity"] = {"status": "unreviewed"}
+        entry["persist_configuration"] = False
+        assert self._errors(entry) == []
+
+    def test_unreviewed_entry_that_persists_is_rejected(self):
+        # Ruling 2026-09-23 Q43 (req-aws-collector-manifest-7): unreviewed
+        # means not stored. The schema carries the rule, so load_manifest()
+        # refuses such a manifest before any collection runs.
+        entry = self._entry()
+        entry["sensitivity"] = {"status": "unreviewed"}
+        entry["persist_configuration"] = True
+        errors = self._errors(entry)
+        assert errors, "an unreviewed entry that persists must fail schema validation"
+        assert any("False was expected" in m for m in errors), errors
+
+    @pytest.mark.parametrize("status", ["reviewed_none_known", "reviewed_may_contain"])
+    def test_reviewed_entry_may_persist(self, status):
+        # The rule binds only the unreviewed state; a reviewed entry decides
+        # persistence on its own reason.
+        entry = self._entry()
+        entry["sensitivity"] = {"status": status, "basis": "read x"}
+        if status == "reviewed_may_contain":
+            entry["sensitivity"]["locations"] = [
+                {"path": "A", "category": "free_text", "reason": "r", "evidence": "reviewer_judgement"}
+            ]
+        entry["persist_configuration"] = True
         assert self._errors(entry) == []
 
     def test_may_contain_without_locations_is_rejected(self):
