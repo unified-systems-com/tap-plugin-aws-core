@@ -60,11 +60,8 @@ export async function execute(context) {
     const labelInset = parentLabelInset({...chrome, inset: GEOM.labelInset});
     const pad = {top: 14 + labelInset, right: 24, bottom: 24, left: 24};
 
-    const baseSizes = {};
-    cy.nodes().forEach((n) => {
-        const t = n.data("entity_type");
-        if (t && !baseSizes[t]) baseSizes[t] = CONTAINERS.includes(t) ? {width: 190, height: 90} : GEOM.leaf;
-    });
+    const types = [...new Set(cy.nodes().map((n) => n.data("entity_type")).filter(Boolean))];
+    const baseSizes = Object.fromEntries(types.map((t) => [t, CONTAINERS.includes(t) ? {width: 190, height: 90} : GEOM.leaf]));
 
     const result = await projectNested(cy, {
         relationships: [
