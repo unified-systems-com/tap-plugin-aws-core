@@ -16,9 +16,7 @@ def _aws_models():
 
 
 def _entries():
-    data = json.loads(MANIFEST.read_text())
-    entries = data["resources"] if isinstance(data, dict) and "resources" in data else data
-    return entries if isinstance(entries, list) else list(entries.values())
+    return json.loads(MANIFEST.read_text())["entries"]
 
 
 def test_every_model_declares_a_natural_key_on_its_own_fields() -> None:
