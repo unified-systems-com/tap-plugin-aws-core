@@ -1,0 +1,57 @@
+"""aws-counts folds Gryphon envelopes into tiles (req-aws-core-panel-counts). Pure functions: no grid."""
+
+from __future__ import annotations
+
+from tap_plugin.aws_core.panels.counts import BY_KEY, CATALOGUE, boundary_tiles, fold_tile
+
+DESIGN = {"dcom": "design"}
+
+
+def _n(eid: str, dims: dict | None = None, **data: object) -> dict:
+    return {"entity_id": eid, "dimensions": dims or {}, "data": data}
+
+
+def test_catalogue_keys_are_unique() -> None:
+    assert len(BY_KEY) == len(CATALOGUE)
+
+
+def test_a_tile_counts_its_nodes_and_marks_all_design() -> None:
+    tile = fold_tile(BY_KEY["vpcs"], {"nodes": [_n("a", DESIGN), _n("b", DESIGN)]})
+    assert (tile["value"], tile["design"], tile["tone"]) == (2, True, "")
+
+
+def test_a_mixed_count_is_not_marked_design() -> None:
+    assert fold_tile(BY_KEY["vpcs"], {"nodes": [_n("a", DESIGN), _n("b")]})["design"] is False
+
+
+def test_attention_only_when_nonzero() -> None:
+    assert fold_tile(BY_KEY["internet_gateways"], {"nodes": [_n("a")]})["tone"] == "attention"
+    assert fold_tile(BY_KEY["internet_gateways"], {"nodes": []})["tone"] == ""
+
+
+def test_keep_filters_before_counting() -> None:
+    env = {"nodes": [_n("a", scheme="internet-facing"), _n("b", scheme="internal"), _n("c")]}
+    assert fold_tile(BY_KEY["internet_facing_load_balancers"], env)["value"] == 1
+    buckets = {"nodes": [_n("a", public_access_blocked=False), _n("b", public_access_blocked=True)]}
+    assert fold_tile(BY_KEY["public_buckets"], buckets)["value"] == 1
+
+
+def test_boundary_membership_follows_the_ou_tree() -> None:
+    accounts = [_n("acct-1", DESIGN), _n("acct-2", DESIGN), _n("acct-3", DESIGN)]
+    tree = [
+        {"child": "acct-1", "parent": "ou-tenant"},
+        {"child": "ou-tenant", "parent": "ou-stage"},
+        {"child": "acct-2", "parent": "ou-stage"},
+        {"child": "acct-3", "parent": "ou-other"},
+    ]
+    scope = [{"member": "ou-stage", "boundary": "b1", "name": "staging"}, {"member": "ou-prod", "boundary": "b2", "name": "prod"}]
+    tiles = {t["label"]: t for t in boundary_tiles(accounts, tree, scope)}
+    assert tiles["Accounts in staging"]["value"] == 2
+    assert tiles["Accounts in staging"]["design"] is True
+    assert tiles["Accounts in prod"]["value"] == 0
+
+
+def test_a_cycle_in_the_tree_terminates() -> None:
+    tiles = boundary_tiles([_n("a")], [{"child": "a", "parent": "b"}, {"child": "b", "parent": "a"}],
+                           [{"member": "b", "boundary": "x", "name": "x"}])
+    assert tiles[0]["value"] == 1

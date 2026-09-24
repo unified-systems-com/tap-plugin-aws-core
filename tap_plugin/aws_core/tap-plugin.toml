@@ -81,6 +81,8 @@ PEERS_WITH_TRANSIT_GATEWAY__aws_core = "edges/PEERS_WITH_TRANSIT_GATEWAY.edge.js
 [grift]
 dimension = "grift/dimension.grift.json"
 regions = "grift/regions.grift.json"
+# The reusable /aws pages (req-aws-core-page-dashboard): read whatever AWS nodes the grid holds.
+pages = "grift/pages.grift.json"
 
 [[boot.records]]
 name = "ci"

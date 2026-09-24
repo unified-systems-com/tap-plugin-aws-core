@@ -1,0 +1,1785 @@
+{
+  "metadata": {
+    "grift_version": "0"
+  },
+  "_reserved": {},
+  "batches": [
+    {
+      "batch_entity": {
+        "entity_id": "01a0d4ae-fc38-7777-9184-47d8cd2e54d3",
+        "entity_type": "batch",
+        "name": "aws_core pages v0.1.0",
+        "dimensions": {}
+      },
+      "batch_node": {
+        "source": "tap_plugin.aws_core.grift.pages",
+        "name": "aws_core pages v0.1.0",
+        "description": "aws_core's reusable pages (req-aws-core-page-dashboard, -organization, -network): /aws, a dashboard of count tiles, the estate as one picture and two tables; /aws/organization, the OU tree with SCP attachments, boundary scope and Identity Center; /aws/network, transit gateways, attachments, gateways, firewalls and Direct Connect. Every search reads whatever AWS nodes the grid holds: nothing here names a deployment. The children nest under /aws by URL. The graphs share one layout module (aws-estate.js) and the tiles are the aws-counts panel type."
+      },
+      "nodes": [
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e37c-7303-8fff-bf5411328bde",
+            "entity_type": "panel",
+            "name": "AWS counts",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "AWS counts",
+            "slug": "aws-counts",
+            "view": "aws_core/panels/counts.html",
+            "description": "Count tiles over the AWS estate: accounts, OUs, SCPs, VPCs, internet gateways (public front doors and egress exits), internet-facing load balancers, buckets not blocking public access, network firewalls, transit gateways and their attachments, KMS keys, and the accounts inside each compliance boundary. Amber marks a count worth a second look; 'design' marks a count made only of planned nodes.",
+            "config": {
+              "hide_header": true
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e3cd-7415-87dc-bb5225f97040",
+            "entity_type": "panel",
+            "name": "AWS estate",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "AWS estate",
+            "slug": "aws-dash-graph",
+            "description": "The AWS estate in one picture: the organisation tree (every OU as a box around its accounts), each transit gateway around its attachments with a line to every VPC it attaches, the VPCs, gateways and firewalls, and the compliance boundaries each OU is scoped to.",
+            "view": "tap_viz/panels/graph_panel.html",
+            "config": {
+              "height": "100%",
+              "hide_header": true
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e4a7-7117-9982-016bb0b32bab",
+            "entity_type": "projection",
+            "name": "AWS estate projection",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "AWS estate projection",
+            "description": "AWS estate: one elevation, the aws-estate layout module, standard icon-badge chrome, opens fitted.",
+            "definition": {
+              "node_style": {
+                "mode": "icon-badge"
+              },
+              "elevations": [
+                "01a0d4ae-e410-70ea-944e-e02f4860e6ab"
+              ],
+              "default_elevation_id": "01a0d4ae-e410-70ea-944e-e02f4860e6ab",
+              "min_zoom": "fit",
+              "lock_nodes": true
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e410-70ea-944e-e02f4860e6ab",
+            "entity_type": "elevation",
+            "name": "AWS estate elevation",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "AWS estate elevation",
+            "description": "AWS estate at one elevation.",
+            "definition": {
+              "zoom": 1.0,
+              "description": "AWS estate at one elevation.",
+              "layouts": [
+                "01a0d4ae-e464-76a7-9311-413113ed442f"
+              ],
+              "double_tap_targets": []
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e464-76a7-9311-413113ed442f",
+            "entity_type": "layout",
+            "name": "AWS estate layout",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "AWS estate layout",
+            "description": "aws-estate.js: nests the organisation tree on NESTED_UNDER_PARENT and each transit gateway's attachments on ATTACHED_TO_TRANSIT_GATEWAY; every other edge is a line; roots stack in bands (organisation, transit, VPCs and gateways, policies, boundaries, outside systems).",
+            "definition": {
+              "js_file": "tap_plugin/aws_core/static/aws_core/js/projections/aws-estate.js"
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e5f9-7015-999c-d6c32eb5399b",
+            "entity_type": "search",
+            "name": "aws — AWS estate nodes",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS estate nodes",
+            "description": "Every organisation, OU, account, transit gateway, attachment, VPC, internet gateway, NAT gateway and network firewall on the grid.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (n)",
+                "WHERE n.entity_type IN [\"aws_core__aws_organization\", \"aws_core__aws_organizational_unit\", \"aws_core__aws_account\", \"aws_core__aws_transit_gateway\", \"aws_core__aws_transit_gateway_attachment\", \"aws_core__aws_vpc\", \"aws_core__aws_internet_gateway\", \"aws_core__aws_nat_gateway\", \"aws_core__aws_network_firewall\"]",
+                "RETURN n"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e6c6-718d-85a4-268e4af9f56b",
+            "entity_type": "search",
+            "name": "aws — AWS estate nested",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS estate nested",
+            "description": "The organisation tree: each account and OU under its parent (NESTED_UNDER_PARENT).",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a)-[:NESTED_UNDER_PARENT__aws_core]->(b)",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e747-7301-959d-385058a37aef",
+            "entity_type": "search",
+            "name": "aws — AWS estate scoped",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS estate scoped",
+            "description": "Compliance boundaries scoped from an OU or an account (SCOPED_TO_COMPLIANCE_BOUNDARY), with the boundary node.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a)-[:SCOPED_TO_COMPLIANCE_BOUNDARY__compliance_core]->(b:compliance_core__compliance_boundary) WHERE a.entity_type IN [\"aws_core__aws_organizational_unit\", \"aws_core__aws_account\"]",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e7d6-75a5-b1c6-49f77e1e1a71",
+            "entity_type": "search",
+            "name": "aws — AWS estate tgw",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS estate tgw",
+            "description": "Each transit gateway attachment on its gateway.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a)-[:ATTACHED_TO_TRANSIT_GATEWAY__aws_core]->(b)",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e863-73f6-853d-90b12274a6dc",
+            "entity_type": "search",
+            "name": "aws — AWS estate attaches",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS estate attaches",
+            "description": "Each VPC attachment and the VPC it connects.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a)-[:ATTACHES_VPC__aws_core]->(b)",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e8f0-7696-96f2-f554f67501e5",
+            "entity_type": "panel",
+            "name": "Accounts per OU",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "Accounts per OU",
+            "slug": "aws-accounts-per-ou",
+            "description": "How many accounts sit directly in each OU (NESTED_UNDER_PARENT).",
+            "view": "tap_web/panels/table_panel.html",
+            "config": {
+              "default_page_size": 25,
+              "columns": [
+                {
+                  "field": "ou",
+                  "title": "OU",
+                  "header_tooltip": "The organizational unit.",
+                  "widthGrow": 3
+                },
+                {
+                  "field": "accounts",
+                  "title": "Accounts",
+                  "header_tooltip": "Accounts directly in the OU.",
+                  "width": 120
+                }
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e935-717e-af38-56da5d2ff142",
+            "entity_type": "search",
+            "name": "aws — Accounts per OU",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — Accounts per OU",
+            "description": "How many accounts sit directly in each OU (NESTED_UNDER_PARENT).",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a:aws_core__aws_account)-[:NESTED_UNDER_PARENT__aws_core]->(o:aws_core__aws_organizational_unit)",
+                "RETURN o.name AS ou, count(a) AS accounts"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e9b5-755f-a13d-08288ac17b23",
+            "entity_type": "panel",
+            "name": "Boundary scope",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "Boundary scope",
+            "slug": "aws-boundary-scope",
+            "description": "What each compliance boundary is scoped from: the OUs (and any accounts) with a SCOPED_TO_COMPLIANCE_BOUNDARY edge to it. Everything under a scoped OU is inside.",
+            "view": "tap_web/panels/table_panel.html",
+            "config": {
+              "default_page_size": 25,
+              "columns": [
+                {
+                  "field": "boundary",
+                  "title": "Boundary",
+                  "header_tooltip": "The compliance boundary.",
+                  "widthGrow": 2
+                },
+                {
+                  "field": "scoped_from",
+                  "title": "Scoped from",
+                  "header_tooltip": "The OU or account the boundary is scoped from.",
+                  "widthGrow": 2
+                },
+                {
+                  "field": "kind",
+                  "title": "Kind",
+                  "header_tooltip": "OU or account.",
+                  "widthGrow": 2
+                }
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e9f3-74e3-8e6b-90706a354b7b",
+            "entity_type": "search",
+            "name": "aws — Boundary scope",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — Boundary scope",
+            "description": "What each compliance boundary is scoped from: the OUs (and any accounts) with a SCOPED_TO_COMPLIANCE_BOUNDARY edge to it. Everything under a scoped OU is inside.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (x)-[:SCOPED_TO_COMPLIANCE_BOUNDARY__compliance_core]->(b:compliance_core__compliance_boundary)",
+                "WHERE x.entity_type IN [\"aws_core__aws_organizational_unit\", \"aws_core__aws_account\"]",
+                "RETURN b.name AS boundary, x.name AS scoped_from, x.entity_type AS kind"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ea70-7657-868f-f626656b3d63",
+            "entity_type": "page",
+            "name": "AWS",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "AWS",
+            "slug": "/aws",
+            "nav_weight": 200,
+            "description": "The AWS dashboard: count tiles over the estate, the estate as one picture (organisation tree, transit gateways and their attachments, VPCs and gateways, boundaries), accounts per OU and what each compliance boundary is scoped from. The organization and network pages go deeper.",
+            "layout": {
+              "full_bleed": true,
+              "columns": {
+                "col-1": {
+                  "width": "1fr",
+                  "rows": {
+                    "row-1": {
+                      "panel-id": "counts",
+                      "height": "auto"
+                    },
+                    "row-2": {
+                      "panel-id": "estate",
+                      "height": "75vh"
+                    },
+                    "row-3": {
+                      "panel-id": "per-ou",
+                      "height": "auto"
+                    },
+                    "row-4": {
+                      "panel-id": "scope",
+                      "height": "auto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ebb1-76ed-bf93-bfe17f08910c",
+            "entity_type": "panel",
+            "name": "AWS organization",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "AWS organization",
+            "slug": "aws-org-graph",
+            "description": "The AWS Organizations tree: the organization (its root) around every top-level OU and account, each OU around its children; service control policies with a line to every target they are attached to; the compliance boundaries each OU is scoped to (red dashed lines); IAM Identity Center with a line to the identity provider it trusts.",
+            "view": "tap_viz/panels/graph_panel.html",
+            "config": {
+              "height": "100%",
+              "hide_header": true
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ec76-7760-b453-b0f39e46c135",
+            "entity_type": "projection",
+            "name": "AWS organization projection",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "AWS organization projection",
+            "description": "AWS organization: one elevation, the aws-estate layout module, standard icon-badge chrome, opens fitted.",
+            "definition": {
+              "node_style": {
+                "mode": "icon-badge"
+              },
+              "elevations": [
+                "01a0d4ae-ebf4-76ee-a9fe-5085e99ace52"
+              ],
+              "default_elevation_id": "01a0d4ae-ebf4-76ee-a9fe-5085e99ace52",
+              "min_zoom": "fit",
+              "lock_nodes": true
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ebf4-76ee-a9fe-5085e99ace52",
+            "entity_type": "elevation",
+            "name": "AWS organization elevation",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "AWS organization elevation",
+            "description": "AWS organization at one elevation.",
+            "definition": {
+              "zoom": 1.0,
+              "description": "AWS organization at one elevation.",
+              "layouts": [
+                "01a0d4ae-ec35-7039-851f-2b214b363c4b"
+              ],
+              "double_tap_targets": []
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ec35-7039-851f-2b214b363c4b",
+            "entity_type": "layout",
+            "name": "AWS organization layout",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "AWS organization layout",
+            "description": "aws-estate.js: nests the organisation tree on NESTED_UNDER_PARENT and each transit gateway's attachments on ATTACHED_TO_TRANSIT_GATEWAY; every other edge is a line; roots stack in bands (organisation, transit, VPCs and gateways, policies, boundaries, outside systems).",
+            "definition": {
+              "js_file": "tap_plugin/aws_core/static/aws_core/js/projections/aws-estate.js"
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-edbd-700e-925c-607d89743421",
+            "entity_type": "search",
+            "name": "aws — AWS organization nodes",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS organization nodes",
+            "description": "Every organization, OU, account, service control policy and Identity Center instance on the grid.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (n)",
+                "WHERE n.entity_type IN [\"aws_core__aws_organization\", \"aws_core__aws_organizational_unit\", \"aws_core__aws_account\", \"aws_core__aws_service_control_policy\", \"aws_core__aws_identity_center_instance\"]",
+                "RETURN n"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ee4c-769c-9f3b-81a58af39fbc",
+            "entity_type": "search",
+            "name": "aws — AWS organization nested",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS organization nested",
+            "description": "The organisation tree: each account and OU under its parent (NESTED_UNDER_PARENT).",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a)-[:NESTED_UNDER_PARENT__aws_core]->(b)",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ef03-71af-bdb6-fcfc671fb12d",
+            "entity_type": "search",
+            "name": "aws — AWS organization scoped",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS organization scoped",
+            "description": "Compliance boundaries scoped from an OU or an account (SCOPED_TO_COMPLIANCE_BOUNDARY), with the boundary node.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a)-[:SCOPED_TO_COMPLIANCE_BOUNDARY__compliance_core]->(b:compliance_core__compliance_boundary) WHERE a.entity_type IN [\"aws_core__aws_organizational_unit\", \"aws_core__aws_account\"]",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-efbc-718f-9609-431607e43e05",
+            "entity_type": "search",
+            "name": "aws — AWS organization scp",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS organization scp",
+            "description": "Each service control policy and the targets it is attached to.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a)-[:ATTACHED_TO_TARGET__aws_core]->(b)",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f046-77f4-b7c4-a1a93aa3c7ad",
+            "entity_type": "search",
+            "name": "aws — AWS organization idp",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS organization idp",
+            "description": "IAM Identity Center and the external identity provider it trusts.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a)-[:TRUSTS_IDENTITY_SOURCE__aws_core]->(b)",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f0ec-7131-a40b-01a48be46803",
+            "entity_type": "panel",
+            "name": "SCP attachments",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "SCP attachments",
+            "slug": "aws-scp-attachments",
+            "description": "Every service control policy and each OU, account or root it is attached to (ATTACHED_TO_TARGET). A policy attached to an OU bounds everything under it.",
+            "view": "tap_web/panels/table_panel.html",
+            "config": {
+              "default_page_size": 25,
+              "columns": [
+                {
+                  "field": "policy",
+                  "title": "Policy",
+                  "header_tooltip": "The service control policy.",
+                  "widthGrow": 2
+                },
+                {
+                  "field": "target",
+                  "title": "Attached to",
+                  "header_tooltip": "The OU, account or organization root.",
+                  "widthGrow": 2
+                },
+                {
+                  "field": "target_kind",
+                  "title": "Kind",
+                  "header_tooltip": "What the target is.",
+                  "widthGrow": 2
+                },
+                {
+                  "field": "description",
+                  "title": "What it does",
+                  "header_tooltip": "The policy's description.",
+                  "widthGrow": 4
+                }
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f137-7305-8290-3fac402e0666",
+            "entity_type": "search",
+            "name": "aws — SCP attachments",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — SCP attachments",
+            "description": "Every service control policy and each OU, account or root it is attached to (ATTACHED_TO_TARGET). A policy attached to an OU bounds everything under it.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (p:aws_core__aws_service_control_policy)-[:ATTACHED_TO_TARGET__aws_core]->(t)",
+                "RETURN p.name AS policy, t.name AS target, t.entity_type AS target_kind, p.data.description AS description"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f1c8-76e0-96ed-ea916337c936",
+            "entity_type": "panel",
+            "name": "Account placement",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "Account placement",
+            "slug": "aws-account-placement",
+            "description": "Every account and the OU (or organization root) it sits directly under.",
+            "view": "tap_web/panels/table_panel.html",
+            "config": {
+              "default_page_size": 50,
+              "columns": [
+                {
+                  "field": "account",
+                  "title": "Account",
+                  "header_tooltip": "The AWS account.",
+                  "widthGrow": 2
+                },
+                {
+                  "field": "parent",
+                  "title": "Parent",
+                  "header_tooltip": "The OU or organization it sits directly under.",
+                  "widthGrow": 2
+                },
+                {
+                  "field": "account_id",
+                  "title": "Account id",
+                  "header_tooltip": "Blank until the account exists (a design account has none).",
+                  "widthGrow": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f20b-7032-a368-c47a0e15a8db",
+            "entity_type": "search",
+            "name": "aws — Account placement",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — Account placement",
+            "description": "Every account and the OU (or organization root) it sits directly under.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a:aws_core__aws_account)-[:NESTED_UNDER_PARENT__aws_core]->(p)",
+                "RETURN a.name AS account, p.name AS parent, a.data.account_id AS account_id"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f2ae-722f-b3a0-6ca7700c8bb2",
+            "entity_type": "page",
+            "name": "Organization",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "Organization",
+            "slug": "/aws/organization",
+            "nav_weight": 210,
+            "description": "The AWS Organizations structure: the OU tree with its accounts, service control policy attachments, the compliance boundaries each OU is scoped to, and the identity provider IAM Identity Center trusts.",
+            "layout": {
+              "full_bleed": true,
+              "columns": {
+                "col-1": {
+                  "width": "1fr",
+                  "rows": {
+                    "row-1": {
+                      "panel-id": "tree",
+                      "height": "75vh"
+                    },
+                    "row-2": {
+                      "panel-id": "scp",
+                      "height": "auto"
+                    },
+                    "row-3": {
+                      "panel-id": "placement",
+                      "height": "auto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f47c-70f0-8cb3-b1a2bcf90883",
+            "entity_type": "panel",
+            "name": "AWS network",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "AWS network",
+            "slug": "aws-net-graph",
+            "description": "The network plane: each transit gateway around its attachments, a line from every VPC attachment to its VPC, peering attachments to their peer gateway, and the VPCs' internet gateways, NAT gateways and network firewalls. A VPC with no attachment is not on any transit gateway (a tenant VPC, or a public front door).",
+            "view": "tap_viz/panels/graph_panel.html",
+            "config": {
+              "height": "100%",
+              "hide_header": true
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f564-7236-a99f-5cc6b6639c5b",
+            "entity_type": "projection",
+            "name": "AWS network projection",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "AWS network projection",
+            "description": "AWS network: one elevation, the aws-estate layout module, standard icon-badge chrome, opens fitted.",
+            "definition": {
+              "node_style": {
+                "mode": "icon-badge"
+              },
+              "elevations": [
+                "01a0d4ae-f4bb-7626-aba4-e04dc10964f4"
+              ],
+              "default_elevation_id": "01a0d4ae-f4bb-7626-aba4-e04dc10964f4",
+              "min_zoom": "fit",
+              "lock_nodes": true
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f4bb-7626-aba4-e04dc10964f4",
+            "entity_type": "elevation",
+            "name": "AWS network elevation",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "AWS network elevation",
+            "description": "AWS network at one elevation.",
+            "definition": {
+              "zoom": 1.0,
+              "description": "AWS network at one elevation.",
+              "layouts": [
+                "01a0d4ae-f51c-76ba-a413-956bb32c760d"
+              ],
+              "double_tap_targets": []
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f51c-76ba-a413-956bb32c760d",
+            "entity_type": "layout",
+            "name": "AWS network layout",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "AWS network layout",
+            "description": "aws-estate.js: nests the organisation tree on NESTED_UNDER_PARENT and each transit gateway's attachments on ATTACHED_TO_TRANSIT_GATEWAY; every other edge is a line; roots stack in bands (organisation, transit, VPCs and gateways, policies, boundaries, outside systems).",
+            "definition": {
+              "js_file": "tap_plugin/aws_core/static/aws_core/js/projections/aws-estate.js"
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f6a4-70b0-8859-f1d70857e572",
+            "entity_type": "search",
+            "name": "aws — AWS network nodes",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS network nodes",
+            "description": "Every transit gateway, attachment, VPC, internet gateway, NAT gateway and network firewall on the grid.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (n)",
+                "WHERE n.entity_type IN [\"aws_core__aws_transit_gateway\", \"aws_core__aws_transit_gateway_attachment\", \"aws_core__aws_vpc\", \"aws_core__aws_internet_gateway\", \"aws_core__aws_nat_gateway\", \"aws_core__aws_network_firewall\"]",
+                "RETURN n"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f726-70bd-a90a-c5916b04550f",
+            "entity_type": "search",
+            "name": "aws — AWS network tgw",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS network tgw",
+            "description": "Each transit gateway attachment on its gateway.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a)-[:ATTACHED_TO_TRANSIT_GATEWAY__aws_core]->(b)",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f7aa-7523-8bac-71f8f239fe4d",
+            "entity_type": "search",
+            "name": "aws — AWS network attaches",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS network attaches",
+            "description": "Each VPC attachment and the VPC it connects.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a)-[:ATTACHES_VPC__aws_core]->(b)",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f87a-705c-8f24-ad0199e30909",
+            "entity_type": "search",
+            "name": "aws — AWS network peers",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — AWS network peers",
+            "description": "Each peering attachment and its peer transit gateway.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (a)-[:PEERS_WITH_TRANSIT_GATEWAY__aws_core]->(b)",
+                "RETURN a, b"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f910-771d-aea4-daf5f399708b",
+            "entity_type": "panel",
+            "name": "Transit gateway attachments",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "Transit gateway attachments",
+            "slug": "aws-tgw-attachments",
+            "description": "Every VPC attachment: its transit gateway, the VPC it connects and that VPC's CIDR. A VPC missing here is not on any transit gateway.",
+            "view": "tap_web/panels/table_panel.html",
+            "config": {
+              "default_page_size": 25,
+              "columns": [
+                {
+                  "field": "transit_gateway",
+                  "title": "Transit gateway",
+                  "header_tooltip": "The gateway the attachment belongs to.",
+                  "widthGrow": 2
+                },
+                {
+                  "field": "attachment",
+                  "title": "Attachment",
+                  "header_tooltip": "The VPC attachment.",
+                  "widthGrow": 2
+                },
+                {
+                  "field": "vpc",
+                  "title": "VPC",
+                  "header_tooltip": "The attached VPC.",
+                  "widthGrow": 2
+                },
+                {
+                  "field": "cidr",
+                  "title": "CIDR",
+                  "header_tooltip": "The VPC's CIDR block; blank until assigned.",
+                  "widthGrow": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f971-70e4-9f7c-b2158fca97c3",
+            "entity_type": "search",
+            "name": "aws — Transit gateway attachments",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — Transit gateway attachments",
+            "description": "Every VPC attachment: its transit gateway, the VPC it connects and that VPC's CIDR. A VPC missing here is not on any transit gateway.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (g:aws_core__aws_transit_gateway)<-[:ATTACHED_TO_TRANSIT_GATEWAY__aws_core]-(a:aws_core__aws_transit_gateway_attachment)-[:ATTACHES_VPC__aws_core]->(v:aws_core__aws_vpc)",
+                "RETURN g.name AS transit_gateway, a.name AS attachment, v.name AS vpc, v.data.cidr_block AS cidr"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f9ee-71a3-bd6c-26b202d8fb1a",
+            "entity_type": "panel",
+            "name": "Internet gateways",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "Internet gateways",
+            "slug": "aws-internet-gateways",
+            "description": "Every internet gateway: each one is a path to or from the internet (a public front door or an egress exit) and should be a documented exception.",
+            "view": "tap_web/panels/table_panel.html",
+            "config": {
+              "default_page_size": 25,
+              "columns": [
+                {
+                  "field": "name",
+                  "title": "Internet gateway",
+                  "header_tooltip": "The gateway's name.",
+                  "widthGrow": 3
+                },
+                {
+                  "field": "data.igw_id",
+                  "title": "Gateway id",
+                  "header_tooltip": "Blank until AWS mints it.",
+                  "widthGrow": 1
+                },
+                {
+                  "field": "data.state",
+                  "title": "State",
+                  "header_tooltip": "Attachment state, when observed.",
+                  "width": 110
+                }
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-fa2e-71aa-9b73-f30958083bc8",
+            "entity_type": "search",
+            "name": "aws — Internet gateways",
+            "dimensions": {}
+          },
+          "node": {
+            "name": "aws — Internet gateways",
+            "description": "Every internet gateway: each one is a path to or from the internet (a public front door or an egress exit) and should be a documented exception.",
+            "search_type": "gryphon",
+            "root": "node",
+            "definition": {
+              "query": [
+                "MATCH (n:aws_core__aws_internet_gateway)",
+                "RETURN n"
+              ]
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-fab3-70c1-962f-4f5abce57a38",
+            "entity_type": "panel",
+            "name": "Direct Connect",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "Direct Connect",
+            "slug": "aws-direct-connect",
+            "view": "tap_web/panels/text_panel.html",
+            "description": "Direct Connect connections, virtual interfaces and gateways into a transit gateway.",
+            "config": {
+              "text": "No Direct Connect connection is on the grid. When one is, this section lists each connection, its virtual interfaces and the Direct Connect gateway associated with a transit gateway. (aws_core's Direct Connect types are not released yet.)"
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-faf2-772c-8669-99ee76d8302e",
+            "entity_type": "page",
+            "name": "Network",
+            "dimensions": {
+              "tap.graph": "web"
+            }
+          },
+          "node": {
+            "name": "Network",
+            "slug": "/aws/network",
+            "nav_weight": 220,
+            "description": "The AWS network plane: transit gateways and their VPC attachments, the VPCs' internet gateways, NAT gateways and network firewalls, and Direct Connect.",
+            "layout": {
+              "full_bleed": true,
+              "columns": {
+                "col-1": {
+                  "width": "1fr",
+                  "rows": {
+                    "row-1": {
+                      "panel-id": "plane",
+                      "height": "75vh"
+                    },
+                    "row-2": {
+                      "panel-id": "attachments",
+                      "height": "auto"
+                    },
+                    "row-3": {
+                      "panel-id": "igw",
+                      "height": "auto"
+                    },
+                    "row-4": {
+                      "panel-id": "dx",
+                      "height": "auto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e4ed-7067-ad07-82198ad35d41",
+            "entity_type": "edge",
+            "name": "AWS estate panel USES_PROJECTION",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-e3cd-7415-87dc-bb5225f97040",
+            "to_entity_id": "01a0d4ae-e4a7-7117-9982-016bb0b32bab",
+            "edge_type": "USES_PROJECTION",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e52d-7154-bd5d-4d47aef21684",
+            "entity_type": "edge",
+            "name": "AWS estate projection USES_ELEVATION",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-e4a7-7117-9982-016bb0b32bab",
+            "to_entity_id": "01a0d4ae-e410-70ea-944e-e02f4860e6ab",
+            "edge_type": "USES_ELEVATION",
+            "properties": {
+              "hotlink": {
+                "model": "projection",
+                "spec": "projection-elevations",
+                "value": "01a0d4ae-e410-70ea-944e-e02f4860e6ab"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e573-7552-9753-470b67a8f454",
+            "entity_type": "edge",
+            "name": "AWS estate projection USES_DEFAULT_ELEVATION",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-e4a7-7117-9982-016bb0b32bab",
+            "to_entity_id": "01a0d4ae-e410-70ea-944e-e02f4860e6ab",
+            "edge_type": "USES_DEFAULT_ELEVATION",
+            "properties": {
+              "hotlink": {
+                "model": "projection",
+                "spec": "projection-default-elevation",
+                "value": "01a0d4ae-e410-70ea-944e-e02f4860e6ab"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e5b3-737f-8f23-7c41da8cbfb0",
+            "entity_type": "edge",
+            "name": "AWS estate elevation USES_LAYOUT",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-e410-70ea-944e-e02f4860e6ab",
+            "to_entity_id": "01a0d4ae-e464-76a7-9311-413113ed442f",
+            "edge_type": "USES_LAYOUT",
+            "properties": {
+              "hotlink": {
+                "model": "elevation",
+                "spec": "elevation-layouts",
+                "value": "01a0d4ae-e464-76a7-9311-413113ed442f"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e66f-768b-8d8b-2ea4b9489fff",
+            "entity_type": "edge",
+            "name": "AWS estate panel USES_SEARCH nodes",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-e3cd-7415-87dc-bb5225f97040",
+            "to_entity_id": "01a0d4ae-e5f9-7015-999c-d6c32eb5399b",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e707-70af-8387-01df1efc6c19",
+            "entity_type": "edge",
+            "name": "AWS estate panel USES_SEARCH nested",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-e3cd-7415-87dc-bb5225f97040",
+            "to_entity_id": "01a0d4ae-e6c6-718d-85a4-268e4af9f56b",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e788-7737-9934-fdf49a873b08",
+            "entity_type": "edge",
+            "name": "AWS estate panel USES_SEARCH scoped",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-e3cd-7415-87dc-bb5225f97040",
+            "to_entity_id": "01a0d4ae-e747-7301-959d-385058a37aef",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e815-735e-b004-29da1474b627",
+            "entity_type": "edge",
+            "name": "AWS estate panel USES_SEARCH tgw",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-e3cd-7415-87dc-bb5225f97040",
+            "to_entity_id": "01a0d4ae-e7d6-75a5-b1c6-49f77e1e1a71",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e8ad-70a0-951a-7d3afc6ecf73",
+            "entity_type": "edge",
+            "name": "AWS estate panel USES_SEARCH attaches",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-e3cd-7415-87dc-bb5225f97040",
+            "to_entity_id": "01a0d4ae-e863-73f6-853d-90b12274a6dc",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-e976-77f5-993c-524ae81d0a93",
+            "entity_type": "edge",
+            "name": "Accounts per OU USES_SEARCH",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-e8f0-7696-96f2-f554f67501e5",
+            "to_entity_id": "01a0d4ae-e935-717e-af38-56da5d2ff142",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ea2e-74bf-bdd2-21292e8f7227",
+            "entity_type": "edge",
+            "name": "Boundary scope USES_SEARCH",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-e9b5-755f-a13d-08288ac17b23",
+            "to_entity_id": "01a0d4ae-e9f3-74e3-8e6b-90706a354b7b",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-eab3-70e8-b4ac-d00cc541df8f",
+            "entity_type": "edge",
+            "name": "AWS page USES_PANEL counts",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-ea70-7657-868f-f626656b3d63",
+            "to_entity_id": "01a0d4ae-e37c-7303-8fff-bf5411328bde",
+            "edge_type": "USES_PANEL",
+            "properties": {
+              "hotlink": {
+                "model": "page",
+                "spec": "page-panels",
+                "value": "counts"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-eaf3-71c3-829e-bd2d8ee498f1",
+            "entity_type": "edge",
+            "name": "AWS page USES_PANEL estate",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-ea70-7657-868f-f626656b3d63",
+            "to_entity_id": "01a0d4ae-e3cd-7415-87dc-bb5225f97040",
+            "edge_type": "USES_PANEL",
+            "properties": {
+              "hotlink": {
+                "model": "page",
+                "spec": "page-panels",
+                "value": "estate"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-eb30-7750-83a4-2d3759979b5f",
+            "entity_type": "edge",
+            "name": "AWS page USES_PANEL per-ou",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-ea70-7657-868f-f626656b3d63",
+            "to_entity_id": "01a0d4ae-e8f0-7696-96f2-f554f67501e5",
+            "edge_type": "USES_PANEL",
+            "properties": {
+              "hotlink": {
+                "model": "page",
+                "spec": "page-panels",
+                "value": "per-ou"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-eb71-74a1-8480-86a2de16b9b5",
+            "entity_type": "edge",
+            "name": "AWS page USES_PANEL scope",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-ea70-7657-868f-f626656b3d63",
+            "to_entity_id": "01a0d4ae-e9b5-755f-a13d-08288ac17b23",
+            "edge_type": "USES_PANEL",
+            "properties": {
+              "hotlink": {
+                "model": "page",
+                "spec": "page-panels",
+                "value": "scope"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ecbd-77a0-a1e8-716462383b3a",
+            "entity_type": "edge",
+            "name": "AWS organization panel USES_PROJECTION",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-ebb1-76ed-bf93-bfe17f08910c",
+            "to_entity_id": "01a0d4ae-ec76-7760-b453-b0f39e46c135",
+            "edge_type": "USES_PROJECTION",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ecfb-775f-9b25-d30b08e79b04",
+            "entity_type": "edge",
+            "name": "AWS organization projection USES_ELEVATION",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-ec76-7760-b453-b0f39e46c135",
+            "to_entity_id": "01a0d4ae-ebf4-76ee-a9fe-5085e99ace52",
+            "edge_type": "USES_ELEVATION",
+            "properties": {
+              "hotlink": {
+                "model": "projection",
+                "spec": "projection-elevations",
+                "value": "01a0d4ae-ebf4-76ee-a9fe-5085e99ace52"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ed3e-7355-98eb-04ec91a65cae",
+            "entity_type": "edge",
+            "name": "AWS organization projection USES_DEFAULT_ELEVATION",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-ec76-7760-b453-b0f39e46c135",
+            "to_entity_id": "01a0d4ae-ebf4-76ee-a9fe-5085e99ace52",
+            "edge_type": "USES_DEFAULT_ELEVATION",
+            "properties": {
+              "hotlink": {
+                "model": "projection",
+                "spec": "projection-default-elevation",
+                "value": "01a0d4ae-ebf4-76ee-a9fe-5085e99ace52"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ed7b-738b-9e76-c5e2c77affc0",
+            "entity_type": "edge",
+            "name": "AWS organization elevation USES_LAYOUT",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-ebf4-76ee-a9fe-5085e99ace52",
+            "to_entity_id": "01a0d4ae-ec35-7039-851f-2b214b363c4b",
+            "edge_type": "USES_LAYOUT",
+            "properties": {
+              "hotlink": {
+                "model": "elevation",
+                "spec": "elevation-layouts",
+                "value": "01a0d4ae-ec35-7039-851f-2b214b363c4b"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ee04-71a6-a54a-0d3558bfa1e3",
+            "entity_type": "edge",
+            "name": "AWS organization panel USES_SEARCH nodes",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-ebb1-76ed-bf93-bfe17f08910c",
+            "to_entity_id": "01a0d4ae-edbd-700e-925c-607d89743421",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-eea4-7601-8e58-18de9a4f7662",
+            "entity_type": "edge",
+            "name": "AWS organization panel USES_SEARCH nested",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-ebb1-76ed-bf93-bfe17f08910c",
+            "to_entity_id": "01a0d4ae-ee4c-769c-9f3b-81a58af39fbc",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-ef75-75f8-9a6b-35bb18d2c98c",
+            "entity_type": "edge",
+            "name": "AWS organization panel USES_SEARCH scoped",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-ebb1-76ed-bf93-bfe17f08910c",
+            "to_entity_id": "01a0d4ae-ef03-71af-bdb6-fcfc671fb12d",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f006-77cc-9cd3-70f2ffaecb80",
+            "entity_type": "edge",
+            "name": "AWS organization panel USES_SEARCH scp",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-ebb1-76ed-bf93-bfe17f08910c",
+            "to_entity_id": "01a0d4ae-efbc-718f-9609-431607e43e05",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f08b-761c-9d0e-119319ba109b",
+            "entity_type": "edge",
+            "name": "AWS organization panel USES_SEARCH idp",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-ebb1-76ed-bf93-bfe17f08910c",
+            "to_entity_id": "01a0d4ae-f046-77f4-b7c4-a1a93aa3c7ad",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f17b-75dc-b4ef-18a40fc10233",
+            "entity_type": "edge",
+            "name": "SCP attachments USES_SEARCH",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f0ec-7131-a40b-01a48be46803",
+            "to_entity_id": "01a0d4ae-f137-7305-8290-3fac402e0666",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f248-7690-b54c-212a61aa450f",
+            "entity_type": "edge",
+            "name": "Account placement USES_SEARCH",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f1c8-76e0-96ed-ea916337c936",
+            "to_entity_id": "01a0d4ae-f20b-7032-a368-c47a0e15a8db",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f347-71b4-89c6-55400d4694f6",
+            "entity_type": "edge",
+            "name": "Organization page USES_PANEL tree",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f2ae-722f-b3a0-6ca7700c8bb2",
+            "to_entity_id": "01a0d4ae-ebb1-76ed-bf93-bfe17f08910c",
+            "edge_type": "USES_PANEL",
+            "properties": {
+              "hotlink": {
+                "model": "page",
+                "spec": "page-panels",
+                "value": "tree"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f3e6-728b-8859-2b9ef0560b4b",
+            "entity_type": "edge",
+            "name": "Organization page USES_PANEL scp",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f2ae-722f-b3a0-6ca7700c8bb2",
+            "to_entity_id": "01a0d4ae-f0ec-7131-a40b-01a48be46803",
+            "edge_type": "USES_PANEL",
+            "properties": {
+              "hotlink": {
+                "model": "page",
+                "spec": "page-panels",
+                "value": "scp"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f438-756c-a978-66df2b171c18",
+            "entity_type": "edge",
+            "name": "Organization page USES_PANEL placement",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f2ae-722f-b3a0-6ca7700c8bb2",
+            "to_entity_id": "01a0d4ae-f1c8-76e0-96ed-ea916337c936",
+            "edge_type": "USES_PANEL",
+            "properties": {
+              "hotlink": {
+                "model": "page",
+                "spec": "page-panels",
+                "value": "placement"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f5a4-715e-9240-91d347fd82a5",
+            "entity_type": "edge",
+            "name": "AWS network panel USES_PROJECTION",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f47c-70f0-8cb3-b1a2bcf90883",
+            "to_entity_id": "01a0d4ae-f564-7236-a99f-5cc6b6639c5b",
+            "edge_type": "USES_PROJECTION",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f5e4-703d-8b9c-723e7ed545e5",
+            "entity_type": "edge",
+            "name": "AWS network projection USES_ELEVATION",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f564-7236-a99f-5cc6b6639c5b",
+            "to_entity_id": "01a0d4ae-f4bb-7626-aba4-e04dc10964f4",
+            "edge_type": "USES_ELEVATION",
+            "properties": {
+              "hotlink": {
+                "model": "projection",
+                "spec": "projection-elevations",
+                "value": "01a0d4ae-f4bb-7626-aba4-e04dc10964f4"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f624-71c1-a573-0bdf85147ab2",
+            "entity_type": "edge",
+            "name": "AWS network projection USES_DEFAULT_ELEVATION",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f564-7236-a99f-5cc6b6639c5b",
+            "to_entity_id": "01a0d4ae-f4bb-7626-aba4-e04dc10964f4",
+            "edge_type": "USES_DEFAULT_ELEVATION",
+            "properties": {
+              "hotlink": {
+                "model": "projection",
+                "spec": "projection-default-elevation",
+                "value": "01a0d4ae-f4bb-7626-aba4-e04dc10964f4"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f662-7689-80a0-ff949aeb3468",
+            "entity_type": "edge",
+            "name": "AWS network elevation USES_LAYOUT",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f4bb-7626-aba4-e04dc10964f4",
+            "to_entity_id": "01a0d4ae-f51c-76ba-a413-956bb32c760d",
+            "edge_type": "USES_LAYOUT",
+            "properties": {
+              "hotlink": {
+                "model": "elevation",
+                "spec": "elevation-layouts",
+                "value": "01a0d4ae-f51c-76ba-a413-956bb32c760d"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f6e5-737f-91fd-7ba5f0d0f691",
+            "entity_type": "edge",
+            "name": "AWS network panel USES_SEARCH nodes",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f47c-70f0-8cb3-b1a2bcf90883",
+            "to_entity_id": "01a0d4ae-f6a4-70b0-8859-f1d70857e572",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f767-74f0-96fc-3e7ac61dedd5",
+            "entity_type": "edge",
+            "name": "AWS network panel USES_SEARCH tgw",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f47c-70f0-8cb3-b1a2bcf90883",
+            "to_entity_id": "01a0d4ae-f726-70bd-a90a-c5916b04550f",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f808-7562-bda1-d5d72c7dc824",
+            "entity_type": "edge",
+            "name": "AWS network panel USES_SEARCH attaches",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f47c-70f0-8cb3-b1a2bcf90883",
+            "to_entity_id": "01a0d4ae-f7aa-7523-8bac-71f8f239fe4d",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f8ca-7061-aa29-2eb91253da4f",
+            "entity_type": "edge",
+            "name": "AWS network panel USES_SEARCH peers",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f47c-70f0-8cb3-b1a2bcf90883",
+            "to_entity_id": "01a0d4ae-f87a-705c-8f24-ad0199e30909",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-f9b0-75ff-9cc8-a09290453e57",
+            "entity_type": "edge",
+            "name": "Transit gateway attachments USES_SEARCH",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f910-771d-aea4-daf5f399708b",
+            "to_entity_id": "01a0d4ae-f971-70e4-9f7c-b2158fca97c3",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-fa75-712f-9eca-179166d6c678",
+            "entity_type": "edge",
+            "name": "Internet gateways USES_SEARCH",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-f9ee-71a3-bd6c-26b202d8fb1a",
+            "to_entity_id": "01a0d4ae-fa2e-71aa-9b73-f30958083bc8",
+            "edge_type": "USES_SEARCH",
+            "properties": {}
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-fb32-769f-8d7f-7f71b1635243",
+            "entity_type": "edge",
+            "name": "Network page USES_PANEL plane",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-faf2-772c-8669-99ee76d8302e",
+            "to_entity_id": "01a0d4ae-f47c-70f0-8cb3-b1a2bcf90883",
+            "edge_type": "USES_PANEL",
+            "properties": {
+              "hotlink": {
+                "model": "page",
+                "spec": "page-panels",
+                "value": "plane"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-fb71-752d-a989-b7ad23ec3e65",
+            "entity_type": "edge",
+            "name": "Network page USES_PANEL attachments",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-faf2-772c-8669-99ee76d8302e",
+            "to_entity_id": "01a0d4ae-f910-771d-aea4-daf5f399708b",
+            "edge_type": "USES_PANEL",
+            "properties": {
+              "hotlink": {
+                "model": "page",
+                "spec": "page-panels",
+                "value": "attachments"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-fbae-76ff-998a-f6595c46f529",
+            "entity_type": "edge",
+            "name": "Network page USES_PANEL igw",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-faf2-772c-8669-99ee76d8302e",
+            "to_entity_id": "01a0d4ae-f9ee-71a3-bd6c-26b202d8fb1a",
+            "edge_type": "USES_PANEL",
+            "properties": {
+              "hotlink": {
+                "model": "page",
+                "spec": "page-panels",
+                "value": "igw"
+              }
+            }
+          }
+        },
+        {
+          "entity": {
+            "entity_id": "01a0d4ae-fbf9-775a-9a27-95f7f4c4f069",
+            "entity_type": "edge",
+            "name": "Network page USES_PANEL dx",
+            "dimensions": {}
+          },
+          "edge": {
+            "from_entity_id": "01a0d4ae-faf2-772c-8669-99ee76d8302e",
+            "to_entity_id": "01a0d4ae-fab3-70c1-962f-4f5abce57a38",
+            "edge_type": "USES_PANEL",
+            "properties": {
+              "hotlink": {
+                "model": "page",
+                "spec": "page-panels",
+                "value": "dx"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
