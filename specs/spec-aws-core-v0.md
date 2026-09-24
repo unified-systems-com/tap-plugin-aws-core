@@ -586,7 +586,9 @@ entity id.
   derivation is a `_PLACED_IN` scene edge the module adds and removes itself (the shadow-nodes
   pattern); it is never stored. Inside a VPC, subnets stand in one column per availability zone (the
   subnet's `availability_zone`, zones in name order), public subnets first, then by label; what the
-  VPC holds directly stands in a column to their left. Every other edge is a line; roots stack in
+  VPC holds directly stands in a column to their left. **Known gap:** tap_viz's graph panel lifts only a
+  node's `tags` onto the scene, not its model fields, so today no zone reaches the layout and a VPC's
+  subnets stand as a compact square-ish block in label order instead. Every other edge is a line; roots stack in
   bands. Nothing is placed by name or id. Standard icon-badge node style.
 - Panel type `aws-counts` (`panels/counts/__init__.py`, `templates/aws_core/panels/counts.html`,
   `static/aws_core/css/counts.css`), registered in `AppConfig.ready()`. `config.tiles` picks tiles
@@ -608,7 +610,7 @@ entity id.
 | req-aws-core-layout-hints-3 | Rows From Tags | Implemented | A parent's `layout:columns` wraps its children into rows of at most that many (1 stacks them); where the layout groups by `layout:row`, children sharing a value share a row, and those in a row sharing a `layout:column` stack in one column. | Observed on the highbar dev grid, 2026-09-24. |
 | req-aws-core-page-network-1 | Network Page Seeded | Implemented | `/aws/network` exists, mounts plane, attachments, igw and dx, and its breadcrumb parent is `/aws`. | |
 | req-aws-core-page-network-2 | Direct Connect Stated, Not Invented | Implemented | With no Direct Connect data, the dx section says no connection is on the grid; it draws no placeholder site. | |
-| req-aws-core-page-network-3 | VPCs Hold Their Subnets | Implemented | The plane nests each subnet in the VPC that `PARTITIONED_INTO_SUBNET` it, in its availability zone's column, and each internet gateway in the VPC it is `ATTACHED_TO_VPC`; a resource in one subnet nests in it, a resource in several subnets of one VPC nests in the VPC with a line to each. | `tests/test_network_page_bundle.py` (scene searches). The layout itself has no JS test and is not yet observed in a browser. |
+| req-aws-core-page-network-3 | VPCs Hold Their Subnets | Implemented | The plane nests each subnet in the VPC that `PARTITIONED_INTO_SUBNET` it, in its availability zone's column (a compact block while the scene carries no zone), and each internet gateway in the VPC it is `ATTACHED_TO_VPC`; a resource in one subnet nests in it, a resource in several subnets of one VPC nests in the VPC with a line to each. | `tests/test_network_page_bundle.py` (scene searches). The layout itself has no JS test and is not yet observed in a browser. |
 | req-aws-core-page-network-4 | Subnets Table | Implemented | `/aws/network` mounts `subnets`, one row per subnet a VPC is partitioned into, with zone, CIDR and public. | `tests/test_network_page_bundle.py`. |
 | req-aws-core-panel-counts-1 | Counts Fold Purely | Implemented | Tiles fold from Gryphon envelopes by pure functions; a failed read renders "read failed", never 0. | `tests/test_counts_panel.py` |
 | req-aws-core-panel-counts-2 | Design Marked | Implemented | A tile whose counted nodes are all dcom=design is marked design. | `tests/test_counts_panel.py` |

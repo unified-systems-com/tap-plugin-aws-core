@@ -1126,8 +1126,7 @@
             "definition": {
               "query": [
                 "MATCH (v:aws_core__aws_vpc)-[:PARTITIONED_INTO_SUBNET__aws_core]->(s:aws_core__aws_subnet)",
-                "RETURN v.name AS vpc, s.name AS subnet, s.data.availability_zone AS zone, s.data.cidr_block AS cidr, s.data.public AS public",
-                "ORDER BY vpc, zone, subnet"
+                "RETURN v.name AS vpc, s.name AS subnet, s.data.availability_zone AS zone, s.data.cidr_block AS cidr, s.data.public AS public"
               ]
             }
           }

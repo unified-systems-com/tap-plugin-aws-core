@@ -19,6 +19,8 @@
  * Inside a VPC, subnets stand in one column per availability zone (the subnet's own
  * `availability_zone`, zones in name order), public subnets first, then by label; what the VPC holds
  * directly (its internet gateway, a multi-subnet resource) stands in a column to their left.
+ * While the scene carries no zone (the graph panel lifts only `tags`, not model fields), a VPC's
+ * subnets stand as a compact block in label order instead.
  *
  * Every other edge in the scene is drawn as a line: an SCP ATTACHED_TO_TARGET its OU, an attachment
  * ATTACHES_VPC, an OU SCOPED_TO a compliance boundary, Identity Center TRUSTS_IDENTITY_SOURCE.
@@ -202,6 +204,15 @@ function _stampVpcColumns(cy) {
     });
     subnetsOf.forEach((subnets) => {
         const zones = [...new Set(subnets.map((s) => s.data("availability_zone")).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+        if (!zones.length) {
+            // The scene carries no zone for any of this VPC's subnets (the graph panel lifts only a
+            // node's tags onto the scene, not its model fields): a compact block instead of a tower,
+            // square-ish, in label order.
+            const width = Math.ceil(Math.sqrt(subnets.length));
+            [...subnets].sort((a, b) => String(a.data("label")).localeCompare(String(b.data("label"))))
+                .forEach((s, i) => s.data({_stage: i % width, _order: Math.floor(i / width)}));
+            return;
+        }
         subnets.forEach((s) => {
             const zone = s.data("availability_zone");
             s.data("_stage", zone ? zones.indexOf(zone) : NO_ZONE_STAGE);
